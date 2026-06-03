@@ -1,0 +1,56 @@
+services:
+  # --- 1. Database untuk Registrasi ---
+  db_registrasi:
+    image: postgres:15-alpine
+    container_name: eai_db_registrasi
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: db_registrasi
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_registrasi:/var/lib/postgresql/data
+    networks:
+      - eai_network
+
+  # --- 2. RabbitMQ Message Broker ---
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: eai_rabbitmq
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - eai_network
+
+  # --- 3. Sistem Registrasi ---
+  registrasi_app:
+    build:
+      context: ./services/registrasi
+      dockerfile: Dockerfile
+    container_name: eai_registrasi_app
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgrespassword@db_registrasi:5432/db_registrasi
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      EXCHANGE_NAME: hospital.events
+    depends_on:
+      - db_registrasi
+      - rabbitmq
+    networks:
+      - eai_network
+
+volumes:
+  pgdata_registrasi:
+  rabbitmq_data:
+
+networks:
+  eai_network:
+    driver: bridge
