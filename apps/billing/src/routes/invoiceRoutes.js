@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Invoice = require('../models/Invoice');
+const publishInvoiceCreated = require('../publishers/invoicePublisher');
 
 // Lihat semua tagihan
 router.get('/', async (req, res) => {
@@ -32,6 +33,10 @@ router.patch('/:patient_id/pay', async (req, res) => {
       { new: true }
     );
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    // Kirim event invoice.created dalam format XML ke RabbitMQ
+    await publishInvoiceCreated(invoice);
+
     res.json(invoice);
   } catch (err) {
     res.status(500).json({ error: err.message });

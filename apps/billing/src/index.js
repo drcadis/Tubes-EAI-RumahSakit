@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const startConsumer = require('./consumers/patientConsumer');
+const startPrescriptionConsumer = require('./consumers/prescriptionConsumer');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 
 const app = express();
@@ -13,6 +14,7 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('Connected to MongoDB');
     startConsumer();
+    startPrescriptionConsumer();
   })
   .catch((err) => console.error('MongoDB connection error:', err));
 
