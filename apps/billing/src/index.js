@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger');
 const startConsumer = require('./consumers/patientConsumer');
 const startPrescriptionConsumer = require('./consumers/prescriptionConsumer');
 const invoiceRoutes = require('./routes/invoiceRoutes');
@@ -23,7 +25,9 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/v1/invoices', invoiceRoutes);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.listen(PORT, () => {
   console.log(`Billing service running on port ${PORT}`);
+  console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
 });
