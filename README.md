@@ -30,7 +30,7 @@ Setiap kali registrasi berhasil, sistem akan mengirimkan event JSON berikut ke R
 {
   "event_id": "evt_987654321",
   "event_timestamp": "2026-06-03T19:45:00Z",
-  "event_type": "PATIENT_REGISTERED",
+  "event_type": "PATIENT_REGISTERED",gi
   "data": {
     "patient_id": "REG-20260603-0001",
     "nik": "3201012345678901",
