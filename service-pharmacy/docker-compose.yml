@@ -1,0 +1,224 @@
+version: '3.9'
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  docker-compose.yml — Sistem Integrasi Rumah Sakit
+#  Jalankan semua service dengan: docker compose up --build
+# ══════════════════════════════════════════════════════════════════════════════
+
+services:
+
+  # ────────────────────────────────────────────────────────
+  #  MESSAGE BROKER — RabbitMQ
+  #  Jantung dari integrasi asinkron antar service
+  # ────────────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management   # versi dengan UI dashboard
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-admin123}
+    ports:
+      - "5672:5672"    # port koneksi aplikasi
+      - "15672:15672"  # port UI dashboard (buka di browser: http://localhost:15672)
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq   # data persisten
+    networks:
+      - hospital_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # ────────────────────────────────────────────────────────
+  #  DATABASE — PostgreSQL untuk Registrasi
+  # ────────────────────────────────────────────────────────
+  postgres_registration:
+    image: postgres:16-alpine
+    container_name: postgres_registration
+    environment:
+      POSTGRES_DB: ${REGISTRATION_DB_NAME:-registration_db}
+      POSTGRES_USER: ${REGISTRATION_DB_USER:-reg_user}
+      POSTGRES_PASSWORD: ${REGISTRATION_DB_PASS:-reg_pass}
+    volumes:
+      - postgres_registration_data:/var/lib/postgresql/data
+    networks:
+      - hospital_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${REGISTRATION_DB_USER:-reg_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # ────────────────────────────────────────────────────────
+  #  DATABASE — MySQL untuk Farmasi
+  # ────────────────────────────────────────────────────────
+  mysql_pharmacy:
+    image: mysql:8.0
+    container_name: mysql_pharmacy
+    environment:
+      MYSQL_DATABASE: ${PHARMACY_DB_NAME:-pharmacy_db}
+      MYSQL_USER: ${PHARMACY_DB_USER:-pharmacy_user}
+      MYSQL_PASSWORD: ${PHARMACY_DB_PASS:-pharmacy_pass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_pass}
+    volumes:
+      - mysql_pharmacy_data:/var/lib/mysql
+    networks:
+      - hospital_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # ────────────────────────────────────────────────────────
+  #  DATABASE — MongoDB untuk Rekam Medis (format XML/JSON)
+  # ────────────────────────────────────────────────────────
+  mongo_medical:
+    image: mongo:7.0
+    container_name: mongo_medical
+    environment:
+      MONGO_INITDB_DATABASE: ${MEDICAL_DB_NAME:-medical_db}
+      MONGO_INITDB_ROOT_USERNAME: ${MEDICAL_DB_USER:-med_user}
+      MONGO_INITDB_ROOT_PASSWORD: ${MEDICAL_DB_PASS:-med_pass}
+    volumes:
+      - mongo_medical_data:/data/db
+    networks:
+      - hospital_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # ────────────────────────────────────────────────────────
+  #  SERVICE 1 — Registrasi (FastAPI + PostgreSQL)
+  # ────────────────────────────────────────────────────────
+  registration-service:
+    build: ./registration-service
+    container_name: registration-service
+    environment:
+      DATABASE_URL: postgresql://${REGISTRATION_DB_USER:-reg_user}:${REGISTRATION_DB_PASS:-reg_pass}@postgres_registration:5432/${REGISTRATION_DB_NAME:-registration_db}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin123}@rabbitmq:5672/
+      SECRET_KEY: ${SECRET_KEY:-supersecretkey}
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres_registration:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - hospital_network
+    restart: on-failure
+
+
+  # ────────────────────────────────────────────────────────
+  #  SERVICE 2 — Farmasi (Flask + MySQL) ← YANG BARU KITA BUAT
+  # ────────────────────────────────────────────────────────
+  pharmacy-service:
+    build: ./pharmacy-service
+    container_name: pharmacy-service
+    environment:
+      DATABASE_URL: mysql+pymysql://${PHARMACY_DB_USER:-pharmacy_user}:${PHARMACY_DB_PASS:-pharmacy_pass}@mysql_pharmacy:3306/${PHARMACY_DB_NAME:-pharmacy_db}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin123}@rabbitmq:5672/
+      PHARMACY_QUEUE: pharmacy_registration_queue
+      SECRET_KEY: ${SECRET_KEY:-supersecretkey}
+    ports:
+      - "5001:5001"
+    depends_on:
+      mysql_pharmacy:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - hospital_network
+    restart: on-failure
+
+
+  # ────────────────────────────────────────────────────────
+  #  SERVICE 3 — Rekam Medis (Flask + MongoDB + XML)
+  #  Placeholder — akan diisi nanti
+  # ────────────────────────────────────────────────────────
+  medical-service:
+    build: ./medical-service
+    container_name: medical-service
+    environment:
+      MONGO_URL: mongodb://${MEDICAL_DB_USER:-med_user}:${MEDICAL_DB_PASS:-med_pass}@mongo_medical:27017/${MEDICAL_DB_NAME:-medical_db}?authSource=admin
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin123}@rabbitmq:5672/
+      SECRET_KEY: ${SECRET_KEY:-supersecretkey}
+    ports:
+      - "5002:5002"
+    depends_on:
+      mongo_medical:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - hospital_network
+    restart: on-failure
+
+
+  # ────────────────────────────────────────────────────────
+  #  INTEGRATION LAYER — Adapter + Router + Transformer
+  #  Placeholder — akan diisi nanti
+  # ────────────────────────────────────────────────────────
+  integration-layer:
+    build: ./integration-layer
+    container_name: integration-layer
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin123}@rabbitmq:5672/
+      REGISTRATION_SERVICE_URL: http://registration-service:8001
+      PHARMACY_SERVICE_URL: http://pharmacy-service:5001
+      MEDICAL_SERVICE_URL: http://medical-service:5002
+    ports:
+      - "5000:5000"
+    depends_on:
+      - rabbitmq
+      - registration-service
+      - pharmacy-service
+    networks:
+      - hospital_network
+    restart: on-failure
+
+
+  # ────────────────────────────────────────────────────────
+  #  API GATEWAY — Nginx
+  #  Semua request dari luar masuk lewat sini
+  # ────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: nginx_gateway
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"   # akses di http://localhost
+    depends_on:
+      - registration-service
+      - pharmacy-service
+      - medical-service
+    networks:
+      - hospital_network
+    restart: on-failure
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  VOLUMES — Data persisten (tidak hilang saat container restart)
+# ══════════════════════════════════════════════════════════════════════════════
+volumes:
+  rabbitmq_data:
+  postgres_registration_data:
+  mysql_pharmacy_data:
+  mongo_medical_data:
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  NETWORKS — Semua service dalam satu jaringan internal
+# ══════════════════════════════════════════════════════════════════════════════
+networks:
+  hospital_network:
+    driver: bridge
