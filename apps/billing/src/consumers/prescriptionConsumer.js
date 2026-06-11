@@ -6,15 +6,15 @@ async function startPrescriptionConsumer() {
     const connection = await amqp.connect(process.env.RABBITMQ_URL);
     const channel = await connection.createChannel();
 
-    const exchange = 'hospital.events';
-    const queue = 'billing.prescription.dispensed';
-    const routingKey = 'prescription.dispensed';
+    const exchange = 'pharmacy_events';
+    const queue = 'billing.resep.selesai';
+    const routingKey = 'resep.selesai';
 
     await channel.assertExchange(exchange, 'topic', { durable: true });
     await channel.assertQueue(queue, { durable: true });
     await channel.bindQueue(queue, exchange, routingKey);
 
-    console.log('Waiting for prescription.dispensed events...');
+    console.log('Waiting for resep.selesai events...');
 
     channel.consume(queue, async (msg) => {
       if (msg) {

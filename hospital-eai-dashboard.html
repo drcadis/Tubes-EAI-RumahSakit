@@ -544,9 +544,9 @@
     RS Nusantara · EAI System
   </div>
   <div class="status-bar">
-    <div class="status-pill"><span class="dot green"></span> Registrasi :8001</div>
-    <div class="status-pill"><span class="dot green"></span> Farmasi :8002</div>
-    <div class="status-pill"><span class="dot yellow"></span> Billing :8003</div>
+    <div class="status-pill" id="status-registrasi"><span class="dot yellow"></span> Registrasi :8001</div>
+    <div class="status-pill" id="status-pharmacy"><span class="dot yellow"></span> Farmasi :5001</div>
+    <div class="status-pill" id="status-billing"><span class="dot yellow"></span> Billing :8003</div>
     <div class="status-pill" style="border-color:rgba(59,130,246,0.3);color:#60a5fa">
       🐰 RabbitMQ :15672
     </div>
@@ -620,7 +620,7 @@
       <div class="sc-bar" style="background: linear-gradient(90deg, var(--accent-reg), transparent)"></div>
     </div>
     <div class="service-card" onclick="navigate('pharma-obat')">
-      <div class="sc-port">:8002</div>
+      <div class="sc-port">:5001</div>
       <div class="sc-icon">💊</div>
       <div class="sc-name">Farmasi</div>
       <div class="sc-desc">Flask + MySQL. Manajemen stok obat, resep, dan notifikasi ke Billing.</div>
@@ -653,7 +653,7 @@
         <div class="flow-box" style="background:var(--accent-pharma-dim);border:1px solid rgba(16,185,129,0.3);color:#34d399">
           💊 Farmasi
         </div>
-        <div style="font-size:11px;color:var(--text-muted)">Flask :8002</div>
+        <div style="font-size:11px;color:var(--text-muted)">Flask :5001</div>
       </div>
       <div class="flow-arrow">
         <div class="arrow-line" style="background:linear-gradient(90deg,var(--accent-pharma),var(--accent-billing))"></div>
@@ -831,7 +831,7 @@
       <div class="section-title">Manajemen Stok Obat</div>
       <div class="section-sub">GET/POST /api/pharmacy/obat · Flask + MySQL</div>
       <span class="service-tag" style="background:var(--accent-pharma-dim);color:#34d399;border:1px solid rgba(16,185,129,0.3)">
-        💊 Farmasi :8002
+        💊 Farmasi :5001
       </span>
     </div>
   </div>
@@ -931,7 +931,7 @@
       <div class="section-title">Manajemen Resep</div>
       <div class="section-sub">GET/POST/PATCH /api/pharmacy/resep · Flask + MySQL</div>
       <span class="service-tag" style="background:var(--accent-pharma-dim);color:#34d399;border:1px solid rgba(16,185,129,0.3)">
-        💊 Farmasi :8002
+        💊 Farmasi :5001
       </span>
     </div>
   </div>
@@ -1117,7 +1117,16 @@
 
 <script>
 // ═══════════════════════════════════════════
-// DATA STORE (in-memory)
+// API CONFIG
+// ═══════════════════════════════════════════
+const API = {
+  registrasi: 'http://localhost:8001',
+  pharmacy: 'http://localhost:5001',
+  billing: 'http://localhost:8003'
+};
+
+// ═══════════════════════════════════════════
+// DATA STORE (synced from backend)
 // ═══════════════════════════════════════════
 let patients = [];
 let obatList = [];
@@ -1127,6 +1136,87 @@ let eventLogs = [];
 let evStats = { reg: 0, pharma: 0, billing: 0 };
 let currentFilter = 'ALL';
 let deleteObatTarget = null;
+
+async function apiFetch(url, options = {}) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options
+  });
+  let data = {};
+  try { data = await res.json(); } catch (_) {}
+  if (!res.ok) {
+    const msg = data.detail || data.pesan || data.error || data.message || `HTTP ${res.status}`;
+    throw new Error(typeof msg === 'object' ? JSON.stringify(msg) : msg);
+  }
+  return data;
+}
+
+function formatDate(val) {
+  if (!val) return '-';
+  return String(val).slice(0, 10);
+}
+
+function invoiceId(inv) {
+  return inv._id || inv.id || '-';
+}
+
+async function checkServicesHealth() {
+  const services = [
+    { id: 'status-registrasi', url: `${API.registrasi}/health`, label: 'Registrasi :8001' },
+    { id: 'status-pharmacy', url: `${API.pharmacy}/api/pharmacy/health`, label: 'Farmasi :5001' },
+    { id: 'status-billing', url: `${API.billing}/health`, label: 'Billing :8003' }
+  ];
+  await Promise.all(services.map(async ({ id, url, label }) => {
+    const el = document.getElementById(id);
+    try {
+      await apiFetch(url);
+      el.innerHTML = `<span class="dot green"></span> ${label}`;
+    } catch (_) {
+      el.innerHTML = `<span class="dot yellow"></span> ${label}`;
+    }
+  }));
+}
+
+async function loadPatients() {
+  patients = await apiFetch(`${API.registrasi}/api/v1/patients`);
+  renderPatients();
+}
+
+async function loadObat() {
+  const res = await apiFetch(`${API.pharmacy}/api/pharmacy/obat`);
+  obatList = res.data || [];
+  renderObat();
+  populateUpdateObatSelect();
+}
+
+async function loadResep() {
+  const res = await apiFetch(`${API.pharmacy}/api/pharmacy/resep`);
+  resepList = res.data || [];
+  renderResep();
+}
+
+async function loadInvoices() {
+  invoices = await apiFetch(`${API.billing}/api/v1/invoices`);
+  renderInvoices();
+}
+
+async function refreshAll() {
+  await Promise.all([loadPatients(), loadObat(), loadResep(), loadInvoices()]);
+  updateBadges();
+  updateStats();
+}
+
+async function refreshInvoicesDelayed(ms = 1500) {
+  setTimeout(async () => {
+    try {
+      await loadInvoices();
+      updateBadges();
+      updateStats();
+    } catch (e) {
+      addEvent('billing', `Gagal refresh invoice: ${e.message}`);
+    }
+  }, ms);
+}
 
 // ═══════════════════════════════════════════
 // NAVIGATION
@@ -1145,8 +1235,9 @@ function navigate(page) {
   if (navMap[page] !== undefined) items[navMap[page]].classList.add('active');
 
   if (page === 'reg-add') setupPayloadPreview();
-  if (page === 'pharma-resep') populateResepPatientSelect();
+  if (page === 'pharma-resep') { populateResepPatientSelect(); loadPatients().catch(() => {}); }
   if (page === 'pharma-obat') populateUpdateObatSelect();
+  if (page === 'billing-list') loadInvoices().then(() => { updateBadges(); updateStats(); }).catch(() => {});
   updateBadges();
   updateStats();
 }
@@ -1260,7 +1351,7 @@ function updatePayloadPreview() {
   document.getElementById('reg-payload-preview').textContent = JSON.stringify(payload, null, 2);
 }
 
-function submitPatient() {
+async function submitPatient() {
   const nik = document.getElementById('reg-nik').value.trim();
   const name = document.getElementById('reg-name').value.trim();
   const dob = document.getElementById('reg-dob').value;
@@ -1268,46 +1359,36 @@ function submitPatient() {
   const type = document.getElementById('reg-type').value;
   if (!nik || !name || !dob || !gender || !type) { toast('Isi semua field wajib (*)', 'error'); return; }
   if (nik.length !== 16 || isNaN(nik)) { toast('NIK harus 16 digit angka', 'error'); return; }
-  if (patients.find(p => p.nik === nik)) { toast('NIK sudah terdaftar!', 'error'); return; }
 
-  const id = 'REG-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + String(patients.length + 1).padStart(4,'0');
-  const patient = {
-    patient_id: id, nik, full_name: name,
-    date_of_birth: dob, gender, 
-    contact_number: document.getElementById('reg-contact').value,
-    blood_type: document.getElementById('reg-blood').value,
-    address: document.getElementById('reg-address').value,
-    registration_type: type,
-    created_at: new Date().toISOString()
-  };
-  patients.push(patient);
+  try {
+    const payload = {
+      nik, full_name: name, date_of_birth: dob, gender,
+      contact_number: document.getElementById('reg-contact').value || null,
+      blood_type: document.getElementById('reg-blood').value || null,
+      address: document.getElementById('reg-address').value || null,
+      registration_type: type
+    };
+    const patient = await apiFetch(`${API.registrasi}/api/v1/patients`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
 
-  // Auto-create invoice
-  const invoice = {
-    _id: 'INV-' + Date.now(),
-    patient_id: id, full_name: name,
-    registration_type: type,
-    items: [{ description: 'Biaya Registrasi ' + type, amount: type === 'UMUM' ? 50000 : type === 'ASURANSI' ? 0 : 0 }],
-    total: type === 'UMUM' ? 50000 : 0,
-    status: 'UNPAID',
-    created_at: new Date().toISOString()
-  };
-  invoices.push(invoice);
+    addEvent('patient', `PATIENT_REGISTERED → patient_id: ${patient.patient_id}, name: ${name}, type: ${type}`);
+    addEvent('billing', `Menunggu invoice dari Billing Service (RabbitMQ)...`);
 
-  addEvent('patient', `PATIENT_REGISTERED → patient_id: ${id}, name: ${name}, type: ${type}`);
-  addEvent('billing', `Invoice auto-created → INV for ${id} (${type})`);
+    toast(`✅ Pasien ${name} berhasil didaftarkan! ID: ${patient.patient_id}`, 'success');
 
-  toast(`✅ Pasien ${name} berhasil didaftarkan! ID: ${id}`, 'success');
+    ['reg-nik','reg-name','reg-dob','reg-contact','reg-address'].forEach(id => document.getElementById(id).value = '');
+    ['reg-gender','reg-blood','reg-type'].forEach(id => document.getElementById(id).value = '');
 
-  // Reset
-  ['reg-nik','reg-name','reg-dob','reg-contact','reg-address'].forEach(id => document.getElementById(id).value = '');
-  ['reg-gender','reg-blood','reg-type'].forEach(id => document.getElementById(id).value = '');
-
-  renderPatients();
-  renderInvoices();
-  updateBadges();
-  updateStats();
-  navigate('reg-list');
+    await loadPatients();
+    refreshInvoicesDelayed();
+    updateBadges();
+    updateStats();
+    navigate('reg-list');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
 function renderPatients(list = patients) {
@@ -1323,11 +1404,10 @@ function renderPatients(list = patients) {
       <td class="mono">${p.nik}</td>
       <td><span class="badge-status badge-${p.gender.toLowerCase()}">${p.gender === 'L' ? '♂ Laki-laki' : '♀ Perempuan'}</span></td>
       <td><span class="badge-status badge-${p.registration_type.toLowerCase()}">${p.registration_type}</span></td>
-      <td class="mono">${p.created_at.slice(0,10)}</td>
+      <td class="mono">${formatDate(p.created_at)}</td>
       <td>
         <div class="flex-row">
           <button class="btn btn-outline btn-sm btn-icon" title="Lihat Detail" onclick="showPatientDetail('${p.patient_id}')">👁</button>
-          <button class="btn btn-danger btn-sm btn-icon" title="Hapus" onclick="deletePatient('${p.patient_id}')">🗑</button>
         </div>
       </td>
     </tr>`).join('');
@@ -1355,28 +1435,17 @@ function showPatientDetail(pid) {
     ['No. Kontak', p.contact_number || '-'],
     ['Alamat', p.address || '-'],
     ['Tipe Registrasi', `<span class="badge-status badge-${p.registration_type.toLowerCase()}">${p.registration_type}</span>`],
-    ['Terdaftar', p.created_at.replace('T', ' ').slice(0,19)],
+    ['Terdaftar', String(p.created_at || '').replace('T', ' ').slice(0,19)],
   ];
   document.getElementById('modal-patient-content').innerHTML =
     fields.map(([k,v]) => `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${v}</span></div>`).join('');
   openModal('modal-patient');
 }
 
-function deletePatient(pid) {
-  if (!confirm('Hapus pasien ini?')) return;
-  patients = patients.filter(p => p.patient_id !== pid);
-  invoices = invoices.filter(i => i.patient_id !== pid);
-  renderPatients();
-  renderInvoices();
-  updateBadges();
-  updateStats();
-  toast('Pasien dihapus', 'info');
-}
-
 // ═══════════════════════════════════════════
 // FARMASI: OBAT
 // ═══════════════════════════════════════════
-function submitObat() {
+async function submitObat() {
   const kode = document.getElementById('obat-kode').value.trim().toUpperCase();
   const nama = document.getElementById('obat-nama').value.trim();
   const stok = parseInt(document.getElementById('obat-stok').value);
@@ -1384,14 +1453,19 @@ function submitObat() {
   const harga = parseFloat(document.getElementById('obat-harga').value);
 
   if (!kode || !nama || isNaN(stok) || isNaN(harga)) { toast('Isi semua field wajib', 'error'); return; }
-  if (obatList.find(o => o.kode_obat === kode)) { toast('Kode obat sudah ada!', 'error'); return; }
 
-  obatList.push({ kode_obat: kode, nama_obat: nama, stok, satuan, harga, created_at: new Date().toISOString() });
-  renderObat();
-  populateUpdateObatSelect();
-  updateBadges();
-  toast(`💊 Obat ${nama} berhasil ditambahkan`, 'success');
-  ['obat-kode','obat-nama','obat-stok','obat-harga'].forEach(id => document.getElementById(id).value = '');
+  try {
+    await apiFetch(`${API.pharmacy}/api/pharmacy/obat`, {
+      method: 'POST',
+      body: JSON.stringify({ kode_obat: kode, nama_obat: nama, stok, satuan, harga })
+    });
+    await loadObat();
+    updateBadges();
+    toast(`💊 Obat ${nama} berhasil ditambahkan`, 'success');
+    ['obat-kode','obat-nama','obat-stok','obat-harga'].forEach(id => document.getElementById(id).value = '');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
 function renderObat(list = obatList) {
@@ -1414,7 +1488,6 @@ function renderObat(list = obatList) {
       <td>
         <div class="flex-row">
           <button class="btn btn-outline btn-sm" onclick="quickUpdateStok('${o.kode_obat}')">🔄 Stok</button>
-          <button class="btn btn-danger btn-sm btn-icon" onclick="openDeleteObat('${o.kode_obat}')">🗑</button>
         </div>
       </td>
     </tr>`).join('');
@@ -1439,7 +1512,7 @@ function populateUpdateObatSelect() {
   };
 }
 
-function submitUpdateStok() {
+async function submitUpdateStok() {
   const kode = document.getElementById('update-obat-select').value;
   const newStok = parseInt(document.getElementById('update-stok-val').value);
   if (!kode) { toast('Pilih obat terlebih dahulu', 'error'); return; }
@@ -1447,12 +1520,28 @@ function submitUpdateStok() {
   const o = obatList.find(x => x.kode_obat === kode);
   if (!o) return;
   const old = o.stok;
-  o.stok = newStok;
-  renderObat();
-  populateUpdateObatSelect();
-  addEvent('resep', `STOK_UPDATED → ${kode} (${o.nama_obat}): ${old} → ${newStok}`);
-  if (newStok < 10) { addEvent('resep', `⚠ STOK_MENIPIS → ${kode} stok tinggal ${newStok}`); toast(`⚠️ Stok ${o.nama_obat} menipis!`, 'error'); }
-  else toast(`Stok ${o.nama_obat} diupdate: ${newStok}`, 'success');
+  const diff = newStok - old;
+  if (diff === 0) { toast('Stok tidak berubah', 'info'); return; }
+
+  try {
+    await apiFetch(`${API.pharmacy}/api/pharmacy/obat/${kode}/stok`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        jumlah: Math.abs(diff),
+        operasi: diff > 0 ? 'tambah' : 'kurangi'
+      })
+    });
+    await loadObat();
+    addEvent('resep', `STOK_UPDATED → ${kode} (${o.nama_obat}): ${old} → ${newStok}`);
+    if (newStok < 10) {
+      addEvent('resep', `⚠ STOK_MENIPIS → ${kode} stok tinggal ${newStok}`);
+      toast(`⚠️ Stok ${o.nama_obat} menipis!`, 'error');
+    } else {
+      toast(`Stok ${o.nama_obat} diupdate: ${newStok}`, 'success');
+    }
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
 function quickUpdateStok(kode) {
@@ -1514,53 +1603,51 @@ function addObatRow() {
 
 function autoFillHarga(sel) { /* price filled at submit */ }
 
-function submitResep() {
+async function submitResep() {
   const patientId = document.getElementById('resep-patient').value;
   const dokter = document.getElementById('resep-dokter').value.trim();
   const diagnosis = document.getElementById('resep-diagnosis').value.trim();
   if (!patientId || !dokter) { toast('Pilih pasien dan isi nama dokter', 'error'); return; }
 
+  const patient = patients.find(p => p.patient_id === patientId);
   const rows = document.querySelectorAll('#resep-obat-list .obat-item');
-  const obatItems = [];
-  let totalHarga = 0;
+  const obat_list = [];
 
   for (const row of rows) {
     const kode = row.querySelector('.resep-obat-kode').value;
     const jumlah = parseInt(row.querySelector('.resep-jumlah').value);
     const aturan = row.querySelector('.resep-aturan').value;
     if (!kode || !jumlah) { toast('Lengkapi data obat', 'error'); return; }
-    const o = obatList.find(x => x.kode_obat === kode);
-    if (!o) { toast('Obat tidak ditemukan', 'error'); return; }
-    if (o.stok < jumlah) { toast(`Stok ${o.nama_obat} tidak cukup (${o.stok})`, 'error'); return; }
-    const subtotal = o.harga * jumlah;
-    totalHarga += subtotal;
-    obatItems.push({ kode_obat: kode, nama_obat: o.nama_obat, jumlah, aturan_pakai: aturan, harga_satuan: o.harga, subtotal });
-    o.stok -= jumlah;
+    obat_list.push({ kode_obat: kode, jumlah, aturan_pakai: aturan || '-' });
   }
 
-  const patient = patients.find(p => p.patient_id === patientId);
-  const nomorResep = 'RES-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + String(resepList.length+1).padStart(4,'0');
-  const resep = {
-    nomor_resep: nomorResep, patient_id: patientId,
-    nama_pasien: patient ? patient.full_name : patientId,
-    dokter, diagnosis, status: 'pending',
-    total_harga: totalHarga, detail_resep: obatItems,
-    created_at: new Date().toISOString()
-  };
-  resepList.push(resep);
+  try {
+    const res = await apiFetch(`${API.pharmacy}/api/pharmacy/resep`, {
+      method: 'POST',
+      body: JSON.stringify({
+        patient_id: patientId,
+        nama_pasien: patient ? patient.full_name : patientId,
+        dokter,
+        diagnosis,
+        obat_list
+      })
+    });
+    const resep = res.data;
+    addEvent('resep', `RESEP_CREATED → ${resep.nomor_resep} for ${patientId} | total: Rp ${resep.total_harga.toLocaleString('id-ID')}`);
 
-  addEvent('resep', `RESEP_CREATED → ${nomorResep} for ${patientId} | total: Rp ${totalHarga.toLocaleString('id-ID')}`);
-  renderObat();
-  renderResep();
-  updateBadges();
-  updateStats();
-  toast(`✅ Resep ${nomorResep} berhasil dibuat`, 'success');
+    await Promise.all([loadObat(), loadResep()]);
+    updateBadges();
+    updateStats();
+    toast(`✅ Resep ${resep.nomor_resep} berhasil dibuat`, 'success');
 
-  document.getElementById('resep-patient').value = '';
-  document.getElementById('resep-dokter').value = '';
-  document.getElementById('resep-diagnosis').value = '';
-  document.getElementById('resep-obat-list').innerHTML = '';
-  addObatRow();
+    document.getElementById('resep-patient').value = '';
+    document.getElementById('resep-dokter').value = '';
+    document.getElementById('resep-diagnosis').value = '';
+    document.getElementById('resep-obat-list').innerHTML = '';
+    addObatRow();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
 function renderResep() {
@@ -1614,24 +1701,24 @@ function showResepDetail(nomor) {
   openModal('modal-resep');
 }
 
-function selesaikanResep(nomor) {
+async function selesaikanResep(nomor) {
   const r = resepList.find(x => x.nomor_resep === nomor);
   if (!r) return;
-  r.status = 'selesai';
 
-  // update invoice
-  const inv = invoices.find(i => i.patient_id === r.patient_id);
-  if (inv) {
-    inv.items.push({ description: `Resep ${nomor}`, amount: r.total_harga });
-    inv.total += r.total_harga;
+  try {
+    await apiFetch(`${API.pharmacy}/api/pharmacy/resep/${encodeURIComponent(nomor)}/selesai`, {
+      method: 'PATCH'
+    });
+    addEvent('resep', `RESEP_SELESAI → ${nomor} | event: resep.selesai → Billing Service`);
+    addEvent('billing', `Menunggu update invoice dari Billing Service...`);
+
+    await loadResep();
+    refreshInvoicesDelayed();
+    updateStats();
+    toast(`Resep ${nomor} selesai! Invoice akan diupdate via RabbitMQ.`, 'success');
+  } catch (e) {
+    toast(e.message, 'error');
   }
-
-  addEvent('resep', `RESEP_SELESAI → ${nomor} | event: resep.selesai → Billing Service`);
-  addEvent('billing', `Invoice updated for ${r.patient_id} +Rp ${r.total_harga.toLocaleString('id-ID')}`);
-  renderResep();
-  renderInvoices();
-  updateStats();
-  toast(`Resep ${nomor} selesai! Invoice diupdate otomatis.`, 'success');
 }
 
 // ═══════════════════════════════════════════
@@ -1650,17 +1737,17 @@ function renderInvoices(list = null) {
   }
   tbody.innerHTML = data.map(inv => `
     <tr>
-      <td class="mono" style="font-size:11px">${inv._id}</td>
+      <td class="mono" style="font-size:11px">${invoiceId(inv)}</td>
       <td class="mono" style="color:var(--accent-billing)">${inv.patient_id}</td>
       <td>${inv.full_name}</td>
-      <td><span class="badge-status badge-${inv.registration_type.toLowerCase()}">${inv.registration_type}</span></td>
-      <td style="font-weight:600">Rp ${inv.total.toLocaleString('id-ID')}</td>
+      <td><span class="badge-status badge-${(inv.registration_type || '').toLowerCase()}">${inv.registration_type}</span></td>
+      <td style="font-weight:600">Rp ${(inv.total || 0).toLocaleString('id-ID')}</td>
       <td><span class="badge-status badge-${inv.status.toLowerCase()}">${inv.status}</span></td>
-      <td class="mono">${inv.created_at.slice(0,10)}</td>
+      <td class="mono">${formatDate(inv.created_at)}</td>
       <td>
         <div class="flex-row">
-          <button class="btn btn-outline btn-sm btn-icon" onclick="showInvoiceDetail('${inv._id}')">👁</button>
-          ${inv.status === 'UNPAID' ? `<button class="btn btn-amber btn-sm" onclick="payInvoice('${inv._id}')">💳 Bayar</button>` : ''}
+          <button class="btn btn-outline btn-sm btn-icon" onclick="showInvoiceDetail('${inv.patient_id}')">👁</button>
+          ${inv.status === 'UNPAID' ? `<button class="btn btn-amber btn-sm" onclick="payInvoice('${inv.patient_id}')">💳 Bayar</button>` : ''}
         </div>
       </td>
     </tr>`).join('');
@@ -1678,11 +1765,11 @@ function filterInvoice(status) {
 
 function filterInvoiceSearch() { renderInvoices(); }
 
-function showInvoiceDetail(id) {
-  const inv = invoices.find(i => i._id === id);
+function showInvoiceDetail(patientId) {
+  const inv = invoices.find(i => i.patient_id === patientId);
   if (!inv) return;
   const content = `
-    <div class="detail-row"><span class="detail-key">Invoice ID</span><span class="detail-val mono">${inv._id}</span></div>
+    <div class="detail-row"><span class="detail-key">Invoice ID</span><span class="detail-val mono">${invoiceId(inv)}</span></div>
     <div class="detail-row"><span class="detail-key">Patient ID</span><span class="detail-val mono">${inv.patient_id}</span></div>
     <div class="detail-row"><span class="detail-key">Nama Pasien</span><span class="detail-val">${inv.full_name}</span></div>
     <div class="detail-row"><span class="detail-key">Tipe</span><span class="detail-val"><span class="badge-status badge-${inv.registration_type.toLowerCase()}">${inv.registration_type}</span></span></div>
@@ -1692,7 +1779,7 @@ function showInvoiceDetail(id) {
       <table>
         <thead><tr><th>Deskripsi</th><th>Jumlah</th></tr></thead>
         <tbody>
-          ${inv.items.map(it => `<tr><td>${it.description}</td><td>Rp ${it.amount.toLocaleString('id-ID')}</td></tr>`).join('')}
+          ${(inv.items || []).map(it => `<tr><td>${it.description}</td><td>Rp ${(it.amount || 0).toLocaleString('id-ID')}</td></tr>`).join('')}
         </tbody>
       </table>
     </div>
@@ -1700,61 +1787,44 @@ function showInvoiceDetail(id) {
       <span class="detail-key">Total</span>
       <span class="detail-val" style="font-size:20px;font-weight:700;color:var(--accent-billing)">Rp ${inv.total.toLocaleString('id-ID')}</span>
     </div>
-    ${inv.status === 'UNPAID' ? `<button class="btn btn-amber mt-16" onclick="payInvoice('${inv._id}');closeModal('modal-invoice')">💳 Bayar Sekarang</button>` : ''}`;
+    ${inv.status === 'UNPAID' ? `<button class="btn btn-amber mt-16" onclick="payInvoice('${inv.patient_id}');closeModal('modal-invoice')">💳 Bayar Sekarang</button>` : ''}`;
   document.getElementById('modal-invoice-content').innerHTML = content;
   openModal('modal-invoice');
 }
 
-function payInvoice(id) {
-  const inv = invoices.find(i => i._id === id);
+async function payInvoice(patientId) {
+  const inv = invoices.find(i => i.patient_id === patientId);
   if (!inv) return;
-  inv.status = 'PAID';
-  inv.paid_at = new Date().toISOString();
-  addEvent('billing', `INVOICE_PAID → ${id} | patient: ${inv.patient_id} | total: Rp ${inv.total.toLocaleString('id-ID')}`);
-  renderInvoices();
-  updateStats();
-  toast(`✅ Invoice ${id} berhasil dibayar!`, 'success');
-}
 
-// ═══════════════════════════════════════════
-// SEED DATA
-// ═══════════════════════════════════════════
-function seedData() {
-  // Seed obat
-  const seedObat = [
-    { kode_obat: 'OBT001', nama_obat: 'Paracetamol 500mg', stok: 150, satuan: 'tablet', harga: 1500 },
-    { kode_obat: 'OBT002', nama_obat: 'Amoxicillin 500mg', stok: 80, satuan: 'kapsul', harga: 3500 },
-    { kode_obat: 'OBT003', nama_obat: 'Ibuprofen 400mg', stok: 60, satuan: 'tablet', harga: 2000 },
-    { kode_obat: 'OBT004', nama_obat: 'Omeprazole 20mg', stok: 8, satuan: 'kapsul', harga: 5000 },
-    { kode_obat: 'OBT005', nama_obat: 'Cetirizine 10mg', stok: 45, satuan: 'tablet', harga: 1800 },
-  ];
-  seedObat.forEach(o => { if (!obatList.find(x => x.kode_obat === o.kode_obat)) obatList.push({ ...o, created_at: new Date().toISOString() }); });
+  try {
+    const updated = await apiFetch(`${API.billing}/api/v1/invoices/${encodeURIComponent(patientId)}/pay`, {
+      method: 'PATCH'
+    });
+    const idx = invoices.findIndex(i => i.patient_id === patientId);
+    if (idx >= 0) invoices[idx] = updated;
 
-  // Seed patients
-  const seedPatients = [
-    { nik: '3201012345678901', full_name: 'Budi Santoso', date_of_birth: '1990-05-15', gender: 'L', contact_number: '081234567890', blood_type: 'O', address: 'Jl. Merdeka No. 45, Bandung', registration_type: 'UMUM' },
-    { nik: '3201019876543210', full_name: 'Siti Rahayu', date_of_birth: '1985-08-22', gender: 'P', contact_number: '082345678901', blood_type: 'A', address: 'Jl. Sudirman No. 12, Jakarta', registration_type: 'BPJS' },
-  ];
-  seedPatients.forEach(p => {
-    if (!patients.find(x => x.nik === p.nik)) {
-      const id = 'REG-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + String(patients.length+1).padStart(4,'0');
-      patients.push({ patient_id: id, ...p, created_at: new Date().toISOString() });
-      invoices.push({ _id: 'INV-' + Date.now() + Math.random(), patient_id: id, full_name: p.full_name, registration_type: p.registration_type, items: [{ description: 'Biaya Registrasi ' + p.registration_type, amount: p.registration_type === 'UMUM' ? 50000 : 0 }], total: p.registration_type === 'UMUM' ? 50000 : 0, status: 'UNPAID', created_at: new Date().toISOString() });
-    }
-  });
-
-  renderPatients();
-  renderObat();
-  renderInvoices();
-  updateBadges();
-  updateStats();
-  addEvent('patient', 'Seed data loaded: 2 pasien, 5 obat, 2 invoice');
+    addEvent('billing', `INVOICE_PAID → ${invoiceId(updated)} | patient: ${patientId} | total: Rp ${(updated.total || 0).toLocaleString('id-ID')}`);
+    renderInvoices();
+    updateStats();
+    toast(`✅ Invoice pasien ${patientId} berhasil dibayar!`, 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
 // INIT
-window.addEventListener('DOMContentLoaded', () => {
-  seedData();
+window.addEventListener('DOMContentLoaded', async () => {
+  addEvent('patient', 'Dashboard terhubung ke backend API...');
+  try {
+    await checkServicesHealth();
+    await refreshAll();
+    addEvent('patient', `Data dimuat: ${patients.length} pasien, ${obatList.length} obat, ${resepList.length} resep, ${invoices.length} invoice`);
+  } catch (e) {
+    toast(`Gagal memuat data: ${e.message}. Pastikan semua service berjalan (docker compose up).`, 'error');
+    addEvent('billing', `Error: ${e.message}`);
+  }
   navigate('overview');
+  setInterval(checkServicesHealth, 30000);
 });
 </script>
 </body>
