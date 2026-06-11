@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 from flasgger import Swagger
 from .models import db, Obat
 from .routes import pharmacy_bp
@@ -16,6 +17,7 @@ logging.basicConfig(
 
 def create_app():
     app = Flask(__name__)
+    CORS(app)
 
     # ── Konfigurasi dari Environment Variable ──────────────────────────────
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(

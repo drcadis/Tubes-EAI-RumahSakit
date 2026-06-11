@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import engine, Base, get_db
 import models
@@ -14,6 +15,14 @@ app = FastAPI(
     title="Sistem Registrasi Pasien",
     description="API untuk Registrasi Pasien - Integrasi EAI",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.post("/api/v1/patients", response_model=schemas.PatientResponse, status_code=201)

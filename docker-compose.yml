@@ -1,5 +1,32 @@
+version: '3.8'
+
 services:
-  # --- 1. Database untuk Registrasi ---
+  # ==========================================
+  # INFRASTRUCTURE: MESSAGE BROKER
+  # ==========================================
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: eai_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - eai_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # INFRASTRUCTURE: DATABASES
+  # ==========================================
+  # Database 1: Registrasi (PostgreSQL)
   db_registrasi:
     image: postgres:15-alpine
     container_name: eai_db_registrasi
@@ -14,27 +41,48 @@ services:
     networks:
       - eai_network
 
-  # --- 2. RabbitMQ Message Broker ---
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: eai_rabbitmq
+  # Database 2: Billing (MongoDB)
+  db_billing:
+    image: mongo:7
+    container_name: eai_db_billing
     ports:
-      - "5672:5672"   # AMQP protocol port
-      - "15672:15672" # Management UI
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      - "27017:27017"
     volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      - mongo_billing_data:/data/db
     networks:
       - eai_network
 
-  # --- 3. Sistem Registrasi ---
+  # Database 3: Pharmacy (MySQL)
+  db_pharmacy:
+    image: mysql:8.0
+    container_name: eai_db_pharmacy
+    environment:
+      MYSQL_DATABASE: pharmacy_db
+      MYSQL_USER: pharmacy_user
+      MYSQL_PASSWORD: pharmacy_pass
+      MYSQL_ROOT_PASSWORD: root_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_pharmacy_data:/var/lib/mysql
+    networks:
+      - eai_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # MICROSERVICES (APPLICATIONS)
+  # ==========================================
+  # 1. Registrasi Service (FastAPI)
   registrasi_app:
     build:
       context: ./services/registrasi
       dockerfile: Dockerfile
     container_name: eai_registrasi_app
+    restart: unless-stopped
     ports:
       - "8001:8001"
     environment:
@@ -42,14 +90,75 @@ services:
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       EXCHANGE_NAME: hospital.events
     depends_on:
-      - db_registrasi
       - rabbitmq
+      - db_registrasi
+    networks:
+      - eai_network
+
+  # 2. Billing Service (Node.js)
+  billing_app:
+    build:
+      context: ./apps/billing
+    container_name: eai_billing_app
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      PORT: 8003
+      MONGODB_URI: mongodb://db_billing:27017/billing_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      - rabbitmq
+      - db_billing
+    networks:
+      - eai_network
+
+  # 3. Pharmacy Service (Flask)
+  pharmacy_app:
+    build:
+      context: ./service-pharmacy
+    container_name: eai_pharmacy_app
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      DATABASE_URL: mysql+pymysql://pharmacy_user:pharmacy_pass@db_pharmacy:3306/pharmacy_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      PHARMACY_QUEUE: pharmacy_registration_queue
+      SECRET_KEY: supersecretkey
+    depends_on:
+      db_pharmacy:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - eai_network
+
+  # 4. Integration Layer (Message Translator)
+  integration_layer:
+    build:
+      context: ./services/integration_layer
+      dockerfile: Dockerfile
+    container_name: eai_integration_layer
+    restart: unless-stopped
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      SOURCE_EXCHANGE: hospital.events
+      SOURCE_ROUTING_KEY: patient.registered
+      TARGET_EXCHANGE: registration_events
+      TARGET_ROUTING_KEY: pasien.terdaftar
+    depends_on:
+      - rabbitmq
+      - registrasi_app
+      - pharmacy_app
     networks:
       - eai_network
 
 volumes:
   pgdata_registrasi:
   rabbitmq_data:
+  mongo_billing_data:
+  mysql_pharmacy_data:
 
 networks:
   eai_network:

@@ -18,23 +18,28 @@ async function startConsumer() {
 
     channel.consume(queue, async (msg) => {
       if (msg) {
-        const event = JSON.parse(msg.content.toString());
-        const { patient_id, full_name, registration_type } = event.data;
+        try {
+          const event = JSON.parse(msg.content.toString());
+          const { patient_id, full_name, registration_type } = event.data;
 
-        const existing = await Invoice.findOne({ patient_id });
-        if (!existing) {
-          await Invoice.create({
-            patient_id,
-            full_name,
-            registration_type,
-            items: [],
-            total: 0,
-            status: 'UNPAID'
-          });
-          console.log(`Invoice created for patient: ${full_name}`);
+          const existing = await Invoice.findOne({ patient_id });
+          if (!existing) {
+            await Invoice.create({
+              patient_id,
+              full_name,
+              registration_type,
+              items: [],
+              total: 0,
+              status: 'UNPAID'
+            });
+            console.log(`Invoice created for patient: ${full_name}`);
+          }
+
+          channel.ack(msg);
+        } catch (error) {
+          console.error('Error processing message, dropping it:', error.message);
+          channel.ack(msg); // Ack to prevent poison message loop
         }
-
-        channel.ack(msg);
       }
     });
 

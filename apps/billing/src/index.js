@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const mongoose = require('mongoose');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
@@ -8,6 +9,7 @@ const startPrescriptionConsumer = require('./consumers/prescriptionConsumer');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 8003;

@@ -18,34 +18,39 @@ async function startPrescriptionConsumer() {
 
     channel.consume(queue, async (msg) => {
       if (msg) {
-        const event = JSON.parse(msg.content.toString());
-        const { patient_id, nama_pasien, total_harga, nomor_resep } = event.data;
+        try {
+          const event = JSON.parse(msg.content.toString());
+          const { patient_id, nama_pasien, total_harga, nomor_resep } = event.data;
 
-        // Cari invoice berdasarkan patient_id
-        const invoice = await Invoice.findOne({ patient_id });
+          // Cari invoice berdasarkan patient_id
+          const invoice = await Invoice.findOne({ patient_id });
 
-        if (invoice) {
-          // Tambahkan item biaya obat ke tagihan yang sudah ada
-          invoice.items.push({
-            description: `Resep ${nomor_resep}`,
-            amount: total_harga
-          });
-          invoice.total += total_harga;
-          await invoice.save();
-          console.log(`Invoice updated for patient: ${nama_pasien}`);
-        } else {
-          // Jika invoice belum ada, buat baru
-          await Invoice.create({
-            patient_id,
-            full_name: nama_pasien,
-            items: [{ description: `Resep ${nomor_resep}`, amount: total_harga }],
-            total: total_harga,
-            status: 'UNPAID'
-          });
-          console.log(`Invoice created from prescription for patient: ${nama_pasien}`);
+          if (invoice) {
+            // Tambahkan item biaya obat ke tagihan yang sudah ada
+            invoice.items.push({
+              description: `Resep ${nomor_resep}`,
+              amount: total_harga
+            });
+            invoice.total += total_harga;
+            await invoice.save();
+            console.log(`Invoice updated for patient: ${nama_pasien}`);
+          } else {
+            // Jika invoice belum ada, buat baru
+            await Invoice.create({
+              patient_id,
+              full_name: nama_pasien,
+              items: [{ description: `Resep ${nomor_resep}`, amount: total_harga }],
+              total: total_harga,
+              status: 'UNPAID'
+            });
+            console.log(`Invoice created from prescription for patient: ${nama_pasien}`);
+          }
+
+          channel.ack(msg);
+        } catch (error) {
+          console.error('Error processing prescription message, dropping it:', error.message);
+          channel.ack(msg);
         }
-
-        channel.ack(msg);
       }
     });
 
