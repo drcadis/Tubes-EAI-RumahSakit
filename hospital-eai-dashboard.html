@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RS Nusantara — EAI Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0b0f1a;
+    --surface: #111827;
+    --surface2: #1a2236;
+    --border: #1f2d47;
+    --accent-reg: #3b82f6;
+    --accent-pharma: #10b981;
+    --accent-billing: #f59e0b;
+    --accent-reg-dim: rgba(59,130,246,0.12);
+    --accent-pharma-dim: rgba(16,185,129,0.12);
+    --accent-billing-dim: rgba(245,158,11,0.12);
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: -0.3px;
+  }
+  .logo-icon {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, #3b82f6, #10b981);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .status-bar {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+    border: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot.green { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .dot.yellow { background: var(--accent-billing); box-shadow: 0 0 6px var(--accent-billing); }
+
+  /* ── LAYOUT ── */
+  .shell {
+    display: flex;
+    min-height: calc(100vh - 64px);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    padding: 20px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .nav-section {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    padding: 8px 12px 4px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text-dim);
+    transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active {
+    color: var(--text);
+    background: var(--surface2);
+    border-color: var(--border);
+  }
+  .nav-item .nav-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .nav-item .badge {
+    margin-left: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── CONTENT ── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+  .section-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .section-sub { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+  .service-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+
+  /* ── FORM STYLES ── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .form-grid.full { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.span2 { grid-column: 1 / -1; }
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.3px;
+  }
+  input, select, textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 10px 13px;
+    transition: border-color 0.15s;
+    outline: none;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent-reg); }
+  input.pharma:focus { border-color: var(--accent-pharma); }
+  input.billing:focus { border-color: var(--accent-billing); }
+  textarea { resize: vertical; min-height: 80px; }
+  select option { background: var(--surface); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent-reg); color: white; }
+  .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+  .btn-green { background: var(--accent-pharma); color: white; }
+  .btn-green:hover { background: #059669; transform: translateY(-1px); }
+  .btn-amber { background: var(--accent-billing); color: #000; }
+  .btn-amber:hover { background: #d97706; transform: translateY(-1px); }
+  .btn-outline {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+  .btn-outline:hover { border-color: var(--text-dim); color: var(--text); }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-icon { padding: 8px; font-size: 15px; }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 13px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 13.5px;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+  /* ── BADGES ── */
+  .badge-status {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .badge-umum { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .badge-bpjs { background: rgba(16,185,129,0.15); color: #34d399; }
+  .badge-paid { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .badge-unpaid { background: rgba(239,68,68,0.15); color: #f87171; }
+  .badge-pending { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .badge-selesai { background: rgba(16,185,129,0.15); color: #34d399; }
+  .badge-l { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .badge-p { background: rgba(244,114,182,0.15); color: #f472b6; }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .stat-card.blue::before { background: var(--accent-reg); }
+  .stat-card.green::before { background: var(--accent-pharma); }
+  .stat-card.amber::before { background: var(--accent-billing); }
+  .stat-label { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+  .stat-val { font-size: 28px; font-weight: 700; letter-spacing: -1px; margin-top: 4px; }
+  .stat-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── TOAST ── */
+  #toast-container {
+    position: fixed; bottom: 28px; right: 28px;
+    display: flex; flex-direction: column; gap: 10px;
+    z-index: 999;
+  }
+  .toast {
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 18px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    animation: slideIn 0.25s ease;
+    max-width: 320px;
+  }
+  .toast.success { border-left: 3px solid var(--success); }
+  .toast.error { border-left: 3px solid var(--danger); }
+  .toast.info { border-left: 3px solid var(--accent-reg); }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(30px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    width: 560px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: popIn 0.2s ease;
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.96) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 22px;
+  }
+  .modal-title { font-size: 17px; font-weight: 700; }
+
+  /* ── EVENT LOG ── */
+  .event-log {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    max-height: 200px;
+    overflow-y: auto;
+    line-height: 1.7;
+  }
+  .log-line { color: var(--text-muted); }
+  .log-line .ts { color: #475569; }
+  .log-line .ev { color: var(--accent-pharma); }
+  .log-line .inf { color: var(--accent-reg); }
+  .log-line .warn { color: var(--accent-billing); }
+
+  /* ── SEARCH ── */
+  .search-bar {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px;
+  }
+  .search-bar input { flex: 1; }
+
+  /* ── DRAG TO REORDER (resep items) ── */
+  .obat-list { display: flex; flex-direction: column; gap: 10px; }
+  .obat-item {
+    display: grid;
+    grid-template-columns: 1fr 90px 1fr auto;
+    gap: 10px;
+    align-items: start;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+  }
+
+  /* ── OVERVIEW CARDS ── */
+  .overview-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+  .service-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .service-card:hover { border-color: rgba(255,255,255,0.2); transform: translateY(-2px); }
+  .service-card .sc-icon { font-size: 32px; margin-bottom: 14px; }
+  .service-card .sc-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .service-card .sc-desc { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+  .service-card .sc-port {
+    position: absolute; top: 16px; right: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg);
+    padding: 3px 7px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+  }
+  .service-card .sc-bar {
+    height: 3px;
+    margin-top: 18px;
+    border-radius: 2px;
+  }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow-diagram {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 20px;
+    overflow-x: auto;
+  }
+  .flow-node {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    flex-shrink: 0;
+  }
+  .flow-box {
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    min-width: 120px;
+  }
+  .flow-arrow {
+    flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    width: 60px;
+  }
+  .arrow-line { height: 2px; width: 100%; }
+  .arrow-label { font-size: 9px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); white-space: nowrap; }
+
+  /* ── DETAIL PANEL ── */
+  .detail-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-key { color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .detail-val { font-weight: 500; }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align: center; padding: 48px 20px;
+    color: var(--text-muted);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-text { font-size: 14px; }
+
+  /* ── TABS ── */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .tab {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent-reg); }
+  .tab.active.green { border-bottom-color: var(--accent-pharma); }
+  .tab.active.amber { border-bottom-color: var(--accent-billing); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .flex-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .ml-auto { margin-left: auto; }
+  .mt-16 { margin-top: 16px; }
+  .mb-16 { margin-bottom: 16px; }
+
+  /* Confirm danger */
+  .danger-zone {
+    border: 1px solid rgba(239,68,68,0.3);
+    background: rgba(239,68,68,0.05);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: #f87171;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">🏥</div>
+    RS Nusantara · EAI System
+  </div>
+  <div class="status-bar">
+    <div class="status-pill"><span class="dot green"></span> Registrasi :8001</div>
+    <div class="status-pill"><span class="dot green"></span> Farmasi :8002</div>
+    <div class="status-pill"><span class="dot yellow"></span> Billing :8003</div>
+    <div class="status-pill" style="border-color:rgba(59,130,246,0.3);color:#60a5fa">
+      🐰 RabbitMQ :15672
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="nav-section">Overview</div>
+  <div class="nav-item active" onclick="navigate('overview')">
+    <span class="nav-dot" style="background:#6366f1"></span>
+    Dashboard
+  </div>
+
+  <div class="nav-section" style="margin-top:12px">Registrasi</div>
+  <div class="nav-item" onclick="navigate('reg-list')">
+    <span class="nav-dot" style="background:var(--accent-reg)"></span>
+    Daftar Pasien
+    <span class="badge" id="badge-patients">0</span>
+  </div>
+  <div class="nav-item" onclick="navigate('reg-add')">
+    <span class="nav-dot" style="background:var(--accent-reg)"></span>
+    + Daftar Baru
+  </div>
+
+  <div class="nav-section" style="margin-top:12px">Farmasi</div>
+  <div class="nav-item" onclick="navigate('pharma-obat')">
+    <span class="nav-dot" style="background:var(--accent-pharma)"></span>
+    Stok Obat
+    <span class="badge" id="badge-obat">0</span>
+  </div>
+  <div class="nav-item" onclick="navigate('pharma-resep')">
+    <span class="nav-dot" style="background:var(--accent-pharma)"></span>
+    Resep
+    <span class="badge" id="badge-resep">0</span>
+  </div>
+
+  <div class="nav-section" style="margin-top:12px">Billing</div>
+  <div class="nav-item" onclick="navigate('billing-list')">
+    <span class="nav-dot" style="background:var(--accent-billing)"></span>
+    Invoice
+    <span class="badge" id="badge-invoices">0</span>
+  </div>
+
+  <div class="nav-section" style="margin-top:12px">System</div>
+  <div class="nav-item" onclick="navigate('events')">
+    <span class="nav-dot" style="background:#8b5cf6"></span>
+    Event Log
+  </div>
+</nav>
+
+<!-- CONTENT -->
+<main class="content">
+
+<!-- ════ OVERVIEW ════ -->
+<div id="page-overview" class="page active">
+  <div class="section-header">
+    <div>
+      <div class="section-title">EAI Dashboard</div>
+      <div class="section-sub">Enterprise Application Integration · Sistem Rumah Sakit</div>
+    </div>
+  </div>
+
+  <div class="overview-grid">
+    <div class="service-card" onclick="navigate('reg-list')">
+      <div class="sc-port">:8001</div>
+      <div class="sc-icon">📋</div>
+      <div class="sc-name">Registrasi Pasien</div>
+      <div class="sc-desc">FastAPI + PostgreSQL. Pendaftaran pasien baru & manajemen data pasien.</div>
+      <div class="sc-bar" style="background: linear-gradient(90deg, var(--accent-reg), transparent)"></div>
+    </div>
+    <div class="service-card" onclick="navigate('pharma-obat')">
+      <div class="sc-port">:8002</div>
+      <div class="sc-icon">💊</div>
+      <div class="sc-name">Farmasi</div>
+      <div class="sc-desc">Flask + MySQL. Manajemen stok obat, resep, dan notifikasi ke Billing.</div>
+      <div class="sc-bar" style="background: linear-gradient(90deg, var(--accent-pharma), transparent)"></div>
+    </div>
+    <div class="service-card" onclick="navigate('billing-list')">
+      <div class="sc-port">:8003</div>
+      <div class="sc-icon">🧾</div>
+      <div class="sc-name">Billing & Asuransi</div>
+      <div class="sc-desc">Express.js + MongoDB. Tagihan otomatis via RabbitMQ event consumer.</div>
+      <div class="sc-bar" style="background: linear-gradient(90deg, var(--accent-billing), transparent)"></div>
+    </div>
+  </div>
+
+  <!-- FLOW -->
+  <div class="card">
+    <div class="card-title">Alur Integrasi EAI</div>
+    <div class="flow-diagram">
+      <div class="flow-node">
+        <div class="flow-box" style="background:var(--accent-reg-dim);border:1px solid rgba(59,130,246,0.3);color:#60a5fa">
+          📋 Registrasi
+        </div>
+        <div style="font-size:11px;color:var(--text-muted)">FastAPI :8001</div>
+      </div>
+      <div class="flow-arrow">
+        <div class="arrow-line" style="background:linear-gradient(90deg,var(--accent-reg),var(--accent-pharma))"></div>
+        <div class="arrow-label">patient.registered →</div>
+      </div>
+      <div class="flow-node">
+        <div class="flow-box" style="background:var(--accent-pharma-dim);border:1px solid rgba(16,185,129,0.3);color:#34d399">
+          💊 Farmasi
+        </div>
+        <div style="font-size:11px;color:var(--text-muted)">Flask :8002</div>
+      </div>
+      <div class="flow-arrow">
+        <div class="arrow-line" style="background:linear-gradient(90deg,var(--accent-pharma),var(--accent-billing))"></div>
+        <div class="arrow-label">resep.selesai →</div>
+      </div>
+      <div class="flow-node">
+        <div class="flow-box" style="background:var(--accent-billing-dim);border:1px solid rgba(245,158,11,0.3);color:#fbbf24">
+          🧾 Billing
+        </div>
+        <div style="font-size:11px;color:var(--text-muted)">Express :8003</div>
+      </div>
+      <div class="flow-arrow">
+        <div class="arrow-line" style="background:linear-gradient(90deg,var(--accent-billing),#8b5cf6)"></div>
+        <div class="arrow-label">invoice.paid →</div>
+      </div>
+      <div class="flow-node">
+        <div class="flow-box" style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.3);color:#a78bfa">
+          🐰 RabbitMQ
+        </div>
+        <div style="font-size:11px;color:var(--text-muted)">AMQP :5672</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card blue">
+      <div class="stat-label">Total Pasien</div>
+      <div class="stat-val" id="stat-patients">0</div>
+      <div class="stat-sub">Terdaftar di sistem</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Resep Aktif</div>
+      <div class="stat-val" id="stat-resep">0</div>
+      <div class="stat-sub">Pending + diproses</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-label">Invoice Belum Bayar</div>
+      <div class="stat-val" id="stat-unpaid">0</div>
+      <div class="stat-sub">Menunggu pembayaran</div>
+    </div>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="card">
+    <div class="card-title">Quick Actions</div>
+    <div class="flex-row">
+      <button class="btn btn-primary" onclick="navigate('reg-add')">➕ Daftarkan Pasien</button>
+      <button class="btn btn-green" onclick="navigate('pharma-obat')">💊 Tambah Obat</button>
+      <button class="btn btn-amber" onclick="navigate('billing-list')">🧾 Lihat Invoice</button>
+      <button class="btn btn-outline" onclick="navigate('events')">📡 Event Log</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ REGISTRASI: LIST ════ -->
+<div id="page-reg-list" class="page">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Daftar Pasien</div>
+      <div class="section-sub">GET /api/v1/patients · FastAPI + PostgreSQL</div>
+      <span class="service-tag" style="background:var(--accent-reg-dim);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)">
+        📋 Registrasi :8001
+      </span>
+    </div>
+    <div class="flex-row">
+      <button class="btn btn-primary" onclick="navigate('reg-add')">➕ Pasien Baru</button>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" placeholder="🔍  Cari nama, NIK, atau ID pasien..." id="search-patients" oninput="filterPatients()">
+  </div>
+
+  <div class="card" style="padding:0">
+    <div class="table-wrap">
+      <table id="patient-table">
+        <thead>
+          <tr>
+            <th>Patient ID</th>
+            <th>Nama Lengkap</th>
+            <th>NIK</th>
+            <th>Jenis Kelamin</th>
+            <th>Tipe</th>
+            <th>Tgl Daftar</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="patient-tbody">
+          <tr><td colspan="7"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Belum ada pasien terdaftar.<br>Klik "Pasien Baru" untuk menambahkan.</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════ REGISTRASI: ADD ════ -->
+<div id="page-reg-add" class="page">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Daftar Pasien Baru</div>
+      <div class="section-sub">POST /api/v1/patients · Field bertanda * wajib diisi</div>
+      <span class="service-tag" style="background:var(--accent-reg-dim);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)">
+        📋 Registrasi :8001
+      </span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Data Identitas Pasien</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>NIK *</label>
+        <input type="text" id="reg-nik" placeholder="16 digit NIK" maxlength="16">
+      </div>
+      <div class="form-group">
+        <label>Nama Lengkap *</label>
+        <input type="text" id="reg-name" placeholder="Nama sesuai KTP">
+      </div>
+      <div class="form-group">
+        <label>Tanggal Lahir *</label>
+        <input type="date" id="reg-dob">
+      </div>
+      <div class="form-group">
+        <label>Jenis Kelamin *</label>
+        <select id="reg-gender">
+          <option value="">— Pilih —</option>
+          <option value="L">Laki-laki</option>
+          <option value="P">Perempuan</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>No. Kontak</label>
+        <input type="text" id="reg-contact" placeholder="08xxxxxxxxxx">
+      </div>
+      <div class="form-group">
+        <label>Golongan Darah</label>
+        <select id="reg-blood">
+          <option value="">— Pilih —</option>
+          <option>A</option><option>B</option><option>AB</option><option>O</option>
+        </select>
+      </div>
+      <div class="form-group span2">
+        <label>Alamat</label>
+        <textarea id="reg-address" placeholder="Jl. ..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Tipe Registrasi *</label>
+        <select id="reg-type">
+          <option value="">— Pilih —</option>
+          <option value="UMUM">UMUM</option>
+          <option value="BPJS">BPJS</option>
+          <option value="ASURANSI">ASURANSI</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex-row mt-16">
+      <button class="btn btn-primary" onclick="submitPatient()">✅ Daftarkan Pasien</button>
+      <button class="btn btn-outline" onclick="navigate('reg-list')">← Kembali</button>
+    </div>
+  </div>
+
+  <!-- preview event payload -->
+  <div class="card">
+    <div class="card-title">Preview Event Payload (RabbitMQ)</div>
+    <div class="event-log" id="reg-payload-preview">
+<span class="log-line"><span class="ts">// Isi form di atas untuk melihat preview event</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- ════ FARMASI: OBAT ════ -->
+<div id="page-pharma-obat" class="page">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Manajemen Stok Obat</div>
+      <div class="section-sub">GET/POST /api/pharmacy/obat · Flask + MySQL</div>
+      <span class="service-tag" style="background:var(--accent-pharma-dim);color:#34d399;border:1px solid rgba(16,185,129,0.3)">
+        💊 Farmasi :8002
+      </span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active green" onclick="switchTab(this,'obat-list-panel')">📋 Daftar Obat</div>
+    <div class="tab" onclick="switchTab(this,'obat-add-panel')">➕ Tambah Obat</div>
+    <div class="tab" onclick="switchTab(this,'obat-update-panel')">🔄 Update Stok</div>
+  </div>
+
+  <!-- LIST -->
+  <div class="tab-panel active" id="obat-list-panel">
+    <div class="search-bar">
+      <input type="text" placeholder="🔍  Cari nama atau kode obat..." id="search-obat" oninput="filterObat()">
+      <button class="btn btn-green btn-sm" onclick="switchTabByName('obat-add-panel')">➕ Tambah</button>
+    </div>
+    <div class="card" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Kode</th><th>Nama Obat</th><th>Stok</th><th>Satuan</th><th>Harga</th><th>Aksi</th></tr></thead>
+          <tbody id="obat-tbody">
+            <tr><td colspan="6"><div class="empty"><div class="empty-icon">💊</div><div class="empty-text">Belum ada obat. Tambahkan via tab "Tambah Obat".</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD -->
+  <div class="tab-panel" id="obat-add-panel">
+    <div class="card">
+      <div class="card-title">Tambah Obat Baru · POST /api/pharmacy/obat</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Kode Obat *</label>
+          <input type="text" id="obat-kode" placeholder="OBT001" class="pharma">
+        </div>
+        <div class="form-group">
+          <label>Nama Obat *</label>
+          <input type="text" id="obat-nama" placeholder="Paracetamol 500mg" class="pharma">
+        </div>
+        <div class="form-group">
+          <label>Stok Awal *</label>
+          <input type="number" id="obat-stok" placeholder="100" min="0" class="pharma">
+        </div>
+        <div class="form-group">
+          <label>Satuan</label>
+          <select id="obat-satuan">
+            <option value="tablet">Tablet</option>
+            <option value="kapsul">Kapsul</option>
+            <option value="botol">Botol</option>
+            <option value="ampul">Ampul</option>
+            <option value="sachet">Sachet</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Harga per Satuan (Rp) *</label>
+          <input type="number" id="obat-harga" placeholder="5000" min="0" class="pharma">
+        </div>
+      </div>
+      <div class="flex-row mt-16">
+        <button class="btn btn-green" onclick="submitObat()">✅ Simpan Obat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPDATE STOK -->
+  <div class="tab-panel" id="obat-update-panel">
+    <div class="card">
+      <div class="card-title">Update Stok · PATCH /api/pharmacy/obat/{kode}/stok</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Pilih Obat *</label>
+          <select id="update-obat-select" class="pharma">
+            <option value="">— Pilih obat —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Stok Baru *</label>
+          <input type="number" id="update-stok-val" placeholder="50" min="0" class="pharma">
+        </div>
+      </div>
+      <div id="update-obat-info" style="margin-top:12px;display:none">
+        <div class="event-log" id="update-obat-preview"></div>
+      </div>
+      <div class="flex-row mt-16">
+        <button class="btn btn-green" onclick="submitUpdateStok()">🔄 Update Stok</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ FARMASI: RESEP ════ -->
+<div id="page-pharma-resep" class="page">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Manajemen Resep</div>
+      <div class="section-sub">GET/POST/PATCH /api/pharmacy/resep · Flask + MySQL</div>
+      <span class="service-tag" style="background:var(--accent-pharma-dim);color:#34d399;border:1px solid rgba(16,185,129,0.3)">
+        💊 Farmasi :8002
+      </span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active green" onclick="switchTab(this,'resep-list-panel')">📋 Daftar Resep</div>
+    <div class="tab" onclick="switchTab(this,'resep-add-panel')">✍️ Buat Resep</div>
+  </div>
+
+  <div class="tab-panel active" id="resep-list-panel">
+    <div class="card" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>No Resep</th><th>Pasien</th><th>Dokter</th><th>Status</th><th>Total</th><th>Aksi</th></tr></thead>
+          <tbody id="resep-tbody">
+            <tr><td colspan="6"><div class="empty"><div class="empty-icon">✍️</div><div class="empty-text">Belum ada resep. Buat resep baru.</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="resep-add-panel">
+    <div class="card">
+      <div class="card-title">Buat Resep Baru · POST /api/pharmacy/resep</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Patient ID *</label>
+          <select id="resep-patient" class="pharma">
+            <option value="">— Pilih pasien —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Nama Dokter *</label>
+          <input type="text" id="resep-dokter" placeholder="dr. Andi Wijaya" class="pharma">
+        </div>
+        <div class="form-group span2">
+          <label>Diagnosis</label>
+          <textarea id="resep-diagnosis" placeholder="Demam tifoid, ..." style="min-height:60px"></textarea>
+        </div>
+      </div>
+
+      <div class="card-title" style="margin-top:20px">Daftar Obat</div>
+      <div class="obat-list" id="resep-obat-list">
+        <!-- items added dynamically -->
+      </div>
+      <button class="btn btn-outline btn-sm mt-16" onclick="addObatRow()">➕ Tambah Obat</button>
+
+      <div class="flex-row mt-16">
+        <button class="btn btn-green" onclick="submitResep()">✅ Buat Resep</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ BILLING ════ -->
+<div id="page-billing-list" class="page">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Invoice & Billing</div>
+      <div class="section-sub">GET/PATCH /api/v1/invoices · Express.js + MongoDB</div>
+      <span class="service-tag" style="background:var(--accent-billing-dim);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)">
+        🧾 Billing :8003
+      </span>
+    </div>
+  </div>
+
+  <!-- Filter pills -->
+  <div class="flex-row mb-16">
+    <button class="btn btn-outline btn-sm" onclick="filterInvoice('ALL')" id="inv-filter-all" style="border-color:#60a5fa;color:#60a5fa">Semua</button>
+    <button class="btn btn-outline btn-sm" onclick="filterInvoice('UNPAID')" id="inv-filter-unpaid">UNPAID</button>
+    <button class="btn btn-outline btn-sm" onclick="filterInvoice('PAID')" id="inv-filter-paid">PAID</button>
+    <input type="text" placeholder="🔍  Cari patient ID / nama..." id="search-invoice" style="width:240px;margin-left:auto" oninput="filterInvoiceSearch()">
+  </div>
+
+  <div class="card" style="padding:0">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Invoice ID</th><th>Patient ID</th><th>Nama</th><th>Tipe</th><th>Total</th><th>Status</th><th>Tgl Dibuat</th><th>Aksi</th></tr></thead>
+        <tbody id="invoice-tbody">
+          <tr><td colspan="8"><div class="empty"><div class="empty-icon">🧾</div><div class="empty-text">Invoice dibuat otomatis saat pasien didaftarkan.</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════ EVENT LOG ════ -->
+<div id="page-events" class="page">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Event Log</div>
+      <div class="section-sub">Log aktivitas RabbitMQ & integrasi antar service</div>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="clearEvents()">🗑 Clear Log</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Live Events · RabbitMQ Exchange: hospital.events</div>
+    <div class="event-log" id="event-log-display" style="max-height:400px">
+      <span class="log-line"><span class="ts">[system] </span><span class="inf">EAI Dashboard aktif. Menunggu event...</span></span><br>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">Statistik Event</div>
+    <div class="stats-row" style="margin-bottom:0">
+      <div class="stat-card blue">
+        <div class="stat-label">patient.registered</div>
+        <div class="stat-val" id="ev-stat-reg">0</div>
+        <div class="stat-sub">Event terkirim</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">resep.selesai</div>
+        <div class="stat-val" id="ev-stat-pharma">0</div>
+        <div class="stat-sub">Event terkirim</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="stat-label">invoice.paid</div>
+        <div class="stat-val" id="ev-stat-billing">0</div>
+        <div class="stat-sub">Event terkirim</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- ════ MODALS ════ -->
+
+<!-- Patient Detail -->
+<div class="modal-overlay" id="modal-patient">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Detail Pasien</div>
+      <button class="btn btn-outline btn-sm" onclick="closeModal('modal-patient')">✕</button>
+    </div>
+    <div id="modal-patient-content"></div>
+  </div>
+</div>
+
+<!-- Resep Detail -->
+<div class="modal-overlay" id="modal-resep">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Detail Resep</div>
+      <button class="btn btn-outline btn-sm" onclick="closeModal('modal-resep')">✕</button>
+    </div>
+    <div id="modal-resep-content"></div>
+  </div>
+</div>
+
+<!-- Invoice Detail -->
+<div class="modal-overlay" id="modal-invoice">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Detail Invoice</div>
+      <button class="btn btn-outline btn-sm" onclick="closeModal('modal-invoice')">✕</button>
+    </div>
+    <div id="modal-invoice-content"></div>
+  </div>
+</div>
+
+<!-- Confirm Delete Obat -->
+<div class="modal-overlay" id="modal-delete-obat">
+  <div class="modal" style="width:420px">
+    <div class="modal-header">
+      <div class="modal-title" style="color:var(--danger)">⚠️ Hapus Obat</div>
+      <button class="btn btn-outline btn-sm" onclick="closeModal('modal-delete-obat')">✕</button>
+    </div>
+    <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px">Apakah Anda yakin ingin menghapus obat ini? Tindakan ini tidak dapat dibatalkan.</p>
+    <div class="danger-zone" id="delete-obat-info"></div>
+    <div class="flex-row mt-16">
+      <button class="btn btn-danger" onclick="confirmDeleteObat()">🗑 Ya, Hapus</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-delete-obat')">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// DATA STORE (in-memory)
+// ═══════════════════════════════════════════
+let patients = [];
+let obatList = [];
+let resepList = [];
+let invoices = [];
+let eventLogs = [];
+let evStats = { reg: 0, pharma: 0, billing: 0 };
+let currentFilter = 'ALL';
+let deleteObatTarget = null;
+
+// ═══════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+
+  // highlight nav
+  const navMap = {
+    'overview': 0, 'reg-list': 1, 'reg-add': 2,
+    'pharma-obat': 3, 'pharma-resep': 4, 'billing-list': 5, 'events': 6
+  };
+  const items = document.querySelectorAll('.nav-item');
+  if (navMap[page] !== undefined) items[navMap[page]].classList.add('active');
+
+  if (page === 'reg-add') setupPayloadPreview();
+  if (page === 'pharma-resep') populateResepPatientSelect();
+  if (page === 'pharma-obat') populateUpdateObatSelect();
+  updateBadges();
+  updateStats();
+}
+
+// ═══════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════
+function switchTab(el, panelId) {
+  const container = el.closest('.page') || document.body;
+  container.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+  if (panelId === 'resep-add-panel') populateResepPatientSelect();
+  if (panelId === 'obat-update-panel') populateUpdateObatSelect();
+  if (panelId === 'obat-add-panel') {}
+}
+function switchTabByName(panelId) {
+  const panel = document.getElementById(panelId);
+  const tabs = panel.closest('.page').querySelectorAll('.tab');
+  const panels = panel.closest('.page').querySelectorAll('.tab-panel');
+  panels.forEach(p => p.classList.remove('active'));
+  tabs.forEach(t => t.classList.remove('active'));
+  panel.classList.add('active');
+  const idx = Array.from(panels).indexOf(panel);
+  if (tabs[idx]) tabs[idx].classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════
+function toast(msg, type = 'info') {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ═══════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════════════
+// EVENT LOG
+// ═══════════════════════════════════════════
+function addEvent(type, msg) {
+  const now = new Date();
+  const ts = now.toTimeString().slice(0, 8);
+  eventLogs.push({ type, msg, ts });
+  const log = document.getElementById('event-log-display');
+  const cls = type === 'patient' ? 'inf' : type === 'resep' ? 'ev' : 'warn';
+  log.innerHTML += `<span class="log-line"><span class="ts">[${ts}] </span><span class="${cls}">${msg}</span></span><br>`;
+  log.scrollTop = log.scrollHeight;
+
+  if (type === 'patient') { evStats.reg++; document.getElementById('ev-stat-reg').textContent = evStats.reg; }
+  if (type === 'resep') { evStats.pharma++; document.getElementById('ev-stat-pharma').textContent = evStats.pharma; }
+  if (type === 'billing') { evStats.billing++; document.getElementById('ev-stat-billing').textContent = evStats.billing; }
+}
+function clearEvents() {
+  document.getElementById('event-log-display').innerHTML = '<span class="log-line"><span class="ts">[system] </span><span class="inf">Log dibersihkan.</span></span><br>';
+  eventLogs = [];
+}
+
+// ═══════════════════════════════════════════
+// BADGES & STATS
+// ═══════════════════════════════════════════
+function updateBadges() {
+  document.getElementById('badge-patients').textContent = patients.length;
+  document.getElementById('badge-obat').textContent = obatList.length;
+  document.getElementById('badge-resep').textContent = resepList.length;
+  document.getElementById('badge-invoices').textContent = invoices.length;
+}
+function updateStats() {
+  document.getElementById('stat-patients').textContent = patients.length;
+  document.getElementById('stat-resep').textContent = resepList.filter(r => r.status !== 'selesai').length;
+  document.getElementById('stat-unpaid').textContent = invoices.filter(i => i.status === 'UNPAID').length;
+}
+
+// ═══════════════════════════════════════════
+// REGISTRASI
+// ═══════════════════════════════════════════
+function setupPayloadPreview() {
+  ['reg-nik','reg-name','reg-dob','reg-gender','reg-contact','reg-blood','reg-address','reg-type'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updatePayloadPreview);
+    if (el) el.addEventListener('change', updatePayloadPreview);
+  });
+}
+function updatePayloadPreview() {
+  const nik = document.getElementById('reg-nik').value;
+  const name = document.getElementById('reg-name').value;
+  const dob = document.getElementById('reg-dob').value;
+  const gender = document.getElementById('reg-gender').value;
+  const contact = document.getElementById('reg-contact').value;
+  const blood = document.getElementById('reg-blood').value;
+  const addr = document.getElementById('reg-address').value;
+  const type = document.getElementById('reg-type').value;
+  const payload = {
+    event_type: "PATIENT_REGISTERED",
+    exchange: "hospital.events",
+    routing_key: "patient.registered",
+    data: { nik, full_name: name, date_of_birth: dob, gender, contact_number: contact, blood_type: blood, address: addr, registration_type: type }
+  };
+  document.getElementById('reg-payload-preview').textContent = JSON.stringify(payload, null, 2);
+}
+
+function submitPatient() {
+  const nik = document.getElementById('reg-nik').value.trim();
+  const name = document.getElementById('reg-name').value.trim();
+  const dob = document.getElementById('reg-dob').value;
+  const gender = document.getElementById('reg-gender').value;
+  const type = document.getElementById('reg-type').value;
+  if (!nik || !name || !dob || !gender || !type) { toast('Isi semua field wajib (*)', 'error'); return; }
+  if (nik.length !== 16 || isNaN(nik)) { toast('NIK harus 16 digit angka', 'error'); return; }
+  if (patients.find(p => p.nik === nik)) { toast('NIK sudah terdaftar!', 'error'); return; }
+
+  const id = 'REG-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + String(patients.length + 1).padStart(4,'0');
+  const patient = {
+    patient_id: id, nik, full_name: name,
+    date_of_birth: dob, gender, 
+    contact_number: document.getElementById('reg-contact').value,
+    blood_type: document.getElementById('reg-blood').value,
+    address: document.getElementById('reg-address').value,
+    registration_type: type,
+    created_at: new Date().toISOString()
+  };
+  patients.push(patient);
+
+  // Auto-create invoice
+  const invoice = {
+    _id: 'INV-' + Date.now(),
+    patient_id: id, full_name: name,
+    registration_type: type,
+    items: [{ description: 'Biaya Registrasi ' + type, amount: type === 'UMUM' ? 50000 : type === 'ASURANSI' ? 0 : 0 }],
+    total: type === 'UMUM' ? 50000 : 0,
+    status: 'UNPAID',
+    created_at: new Date().toISOString()
+  };
+  invoices.push(invoice);
+
+  addEvent('patient', `PATIENT_REGISTERED → patient_id: ${id}, name: ${name}, type: ${type}`);
+  addEvent('billing', `Invoice auto-created → INV for ${id} (${type})`);
+
+  toast(`✅ Pasien ${name} berhasil didaftarkan! ID: ${id}`, 'success');
+
+  // Reset
+  ['reg-nik','reg-name','reg-dob','reg-contact','reg-address'].forEach(id => document.getElementById(id).value = '');
+  ['reg-gender','reg-blood','reg-type'].forEach(id => document.getElementById(id).value = '');
+
+  renderPatients();
+  renderInvoices();
+  updateBadges();
+  updateStats();
+  navigate('reg-list');
+}
+
+function renderPatients(list = patients) {
+  const tbody = document.getElementById('patient-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Belum ada pasien terdaftar.</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(p => `
+    <tr>
+      <td class="mono">${p.patient_id}</td>
+      <td><strong>${p.full_name}</strong></td>
+      <td class="mono">${p.nik}</td>
+      <td><span class="badge-status badge-${p.gender.toLowerCase()}">${p.gender === 'L' ? '♂ Laki-laki' : '♀ Perempuan'}</span></td>
+      <td><span class="badge-status badge-${p.registration_type.toLowerCase()}">${p.registration_type}</span></td>
+      <td class="mono">${p.created_at.slice(0,10)}</td>
+      <td>
+        <div class="flex-row">
+          <button class="btn btn-outline btn-sm btn-icon" title="Lihat Detail" onclick="showPatientDetail('${p.patient_id}')">👁</button>
+          <button class="btn btn-danger btn-sm btn-icon" title="Hapus" onclick="deletePatient('${p.patient_id}')">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function filterPatients() {
+  const q = document.getElementById('search-patients').value.toLowerCase();
+  renderPatients(patients.filter(p =>
+    p.full_name.toLowerCase().includes(q) ||
+    p.nik.includes(q) ||
+    p.patient_id.toLowerCase().includes(q)
+  ));
+}
+
+function showPatientDetail(pid) {
+  const p = patients.find(x => x.patient_id === pid);
+  if (!p) return;
+  const fields = [
+    ['Patient ID', `<span class="mono">${p.patient_id}</span>`],
+    ['NIK', `<span class="mono">${p.nik}</span>`],
+    ['Nama Lengkap', p.full_name],
+    ['Tanggal Lahir', p.date_of_birth],
+    ['Jenis Kelamin', p.gender === 'L' ? '♂ Laki-laki' : '♀ Perempuan'],
+    ['Golongan Darah', p.blood_type || '-'],
+    ['No. Kontak', p.contact_number || '-'],
+    ['Alamat', p.address || '-'],
+    ['Tipe Registrasi', `<span class="badge-status badge-${p.registration_type.toLowerCase()}">${p.registration_type}</span>`],
+    ['Terdaftar', p.created_at.replace('T', ' ').slice(0,19)],
+  ];
+  document.getElementById('modal-patient-content').innerHTML =
+    fields.map(([k,v]) => `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${v}</span></div>`).join('');
+  openModal('modal-patient');
+}
+
+function deletePatient(pid) {
+  if (!confirm('Hapus pasien ini?')) return;
+  patients = patients.filter(p => p.patient_id !== pid);
+  invoices = invoices.filter(i => i.patient_id !== pid);
+  renderPatients();
+  renderInvoices();
+  updateBadges();
+  updateStats();
+  toast('Pasien dihapus', 'info');
+}
+
+// ═══════════════════════════════════════════
+// FARMASI: OBAT
+// ═══════════════════════════════════════════
+function submitObat() {
+  const kode = document.getElementById('obat-kode').value.trim().toUpperCase();
+  const nama = document.getElementById('obat-nama').value.trim();
+  const stok = parseInt(document.getElementById('obat-stok').value);
+  const satuan = document.getElementById('obat-satuan').value;
+  const harga = parseFloat(document.getElementById('obat-harga').value);
+
+  if (!kode || !nama || isNaN(stok) || isNaN(harga)) { toast('Isi semua field wajib', 'error'); return; }
+  if (obatList.find(o => o.kode_obat === kode)) { toast('Kode obat sudah ada!', 'error'); return; }
+
+  obatList.push({ kode_obat: kode, nama_obat: nama, stok, satuan, harga, created_at: new Date().toISOString() });
+  renderObat();
+  populateUpdateObatSelect();
+  updateBadges();
+  toast(`💊 Obat ${nama} berhasil ditambahkan`, 'success');
+  ['obat-kode','obat-nama','obat-stok','obat-harga'].forEach(id => document.getElementById(id).value = '');
+}
+
+function renderObat(list = obatList) {
+  const tbody = document.getElementById('obat-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">💊</div><div class="empty-text">Belum ada obat.</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(o => `
+    <tr>
+      <td class="mono" style="color:var(--accent-pharma)">${o.kode_obat}</td>
+      <td><strong>${o.nama_obat}</strong></td>
+      <td>
+        <span style="color:${o.stok < 10 ? 'var(--danger)' : o.stok < 30 ? 'var(--accent-billing)' : 'var(--success)'}">
+          ${o.stok}
+        </span>
+      </td>
+      <td>${o.satuan}</td>
+      <td>Rp ${o.harga.toLocaleString('id-ID')}</td>
+      <td>
+        <div class="flex-row">
+          <button class="btn btn-outline btn-sm" onclick="quickUpdateStok('${o.kode_obat}')">🔄 Stok</button>
+          <button class="btn btn-danger btn-sm btn-icon" onclick="openDeleteObat('${o.kode_obat}')">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function filterObat() {
+  const q = document.getElementById('search-obat').value.toLowerCase();
+  renderObat(obatList.filter(o => o.nama_obat.toLowerCase().includes(q) || o.kode_obat.toLowerCase().includes(q)));
+}
+
+function populateUpdateObatSelect() {
+  const sel = document.getElementById('update-obat-select');
+  sel.innerHTML = '<option value="">— Pilih obat —</option>' +
+    obatList.map(o => `<option value="${o.kode_obat}">${o.kode_obat} — ${o.nama_obat} (stok: ${o.stok})</option>`).join('');
+  sel.onchange = function() {
+    const o = obatList.find(x => x.kode_obat === this.value);
+    if (!o) { document.getElementById('update-obat-info').style.display = 'none'; return; }
+    document.getElementById('update-obat-info').style.display = 'block';
+    document.getElementById('update-obat-preview').textContent =
+      `Obat: ${o.nama_obat}\nStok saat ini: ${o.stok} ${o.satuan}\nHarga: Rp ${o.harga.toLocaleString('id-ID')}`;
+    document.getElementById('update-stok-val').value = o.stok;
+  };
+}
+
+function submitUpdateStok() {
+  const kode = document.getElementById('update-obat-select').value;
+  const newStok = parseInt(document.getElementById('update-stok-val').value);
+  if (!kode) { toast('Pilih obat terlebih dahulu', 'error'); return; }
+  if (isNaN(newStok) || newStok < 0) { toast('Masukkan nilai stok yang valid', 'error'); return; }
+  const o = obatList.find(x => x.kode_obat === kode);
+  if (!o) return;
+  const old = o.stok;
+  o.stok = newStok;
+  renderObat();
+  populateUpdateObatSelect();
+  addEvent('resep', `STOK_UPDATED → ${kode} (${o.nama_obat}): ${old} → ${newStok}`);
+  if (newStok < 10) { addEvent('resep', `⚠ STOK_MENIPIS → ${kode} stok tinggal ${newStok}`); toast(`⚠️ Stok ${o.nama_obat} menipis!`, 'error'); }
+  else toast(`Stok ${o.nama_obat} diupdate: ${newStok}`, 'success');
+}
+
+function quickUpdateStok(kode) {
+  switchTabByName('obat-update-panel');
+  setTimeout(() => {
+    document.getElementById('update-obat-select').value = kode;
+    document.getElementById('update-obat-select').dispatchEvent(new Event('change'));
+  }, 50);
+}
+
+function openDeleteObat(kode) {
+  deleteObatTarget = kode;
+  const o = obatList.find(x => x.kode_obat === kode);
+  document.getElementById('delete-obat-info').textContent = `Kode: ${kode} | Nama: ${o.nama_obat} | Stok: ${o.stok}`;
+  openModal('modal-delete-obat');
+}
+function confirmDeleteObat() {
+  obatList = obatList.filter(o => o.kode_obat !== deleteObatTarget);
+  renderObat();
+  updateBadges();
+  closeModal('modal-delete-obat');
+  toast('Obat dihapus', 'info');
+}
+
+// ═══════════════════════════════════════════
+// FARMASI: RESEP
+// ═══════════════════════════════════════════
+function populateResepPatientSelect() {
+  const sel = document.getElementById('resep-patient');
+  sel.innerHTML = '<option value="">— Pilih pasien —</option>' +
+    patients.map(p => `<option value="${p.patient_id}">${p.patient_id} — ${p.full_name}</option>`).join('');
+  if (!document.getElementById('resep-obat-list').children.length) addObatRow();
+}
+
+function addObatRow() {
+  const list = document.getElementById('resep-obat-list');
+  const idx = list.children.length;
+  const row = document.createElement('div');
+  row.className = 'obat-item';
+  row.innerHTML = `
+    <div class="form-group">
+      <label>Obat *</label>
+      <select class="resep-obat-kode" onchange="autoFillHarga(this)">
+        <option value="">— Pilih —</option>
+        ${obatList.map(o => `<option value="${o.kode_obat}" data-harga="${o.harga}">${o.nama_obat} (stok: ${o.stok})</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Jumlah *</label>
+      <input type="number" class="resep-jumlah" min="1" placeholder="1" value="1">
+    </div>
+    <div class="form-group">
+      <label>Aturan Pakai</label>
+      <input type="text" class="resep-aturan" placeholder="3x sehari sesudah makan">
+    </div>
+    <button class="btn btn-danger btn-icon" style="margin-top:22px" onclick="this.parentElement.remove()">✕</button>`;
+  list.appendChild(row);
+}
+
+function autoFillHarga(sel) { /* price filled at submit */ }
+
+function submitResep() {
+  const patientId = document.getElementById('resep-patient').value;
+  const dokter = document.getElementById('resep-dokter').value.trim();
+  const diagnosis = document.getElementById('resep-diagnosis').value.trim();
+  if (!patientId || !dokter) { toast('Pilih pasien dan isi nama dokter', 'error'); return; }
+
+  const rows = document.querySelectorAll('#resep-obat-list .obat-item');
+  const obatItems = [];
+  let totalHarga = 0;
+
+  for (const row of rows) {
+    const kode = row.querySelector('.resep-obat-kode').value;
+    const jumlah = parseInt(row.querySelector('.resep-jumlah').value);
+    const aturan = row.querySelector('.resep-aturan').value;
+    if (!kode || !jumlah) { toast('Lengkapi data obat', 'error'); return; }
+    const o = obatList.find(x => x.kode_obat === kode);
+    if (!o) { toast('Obat tidak ditemukan', 'error'); return; }
+    if (o.stok < jumlah) { toast(`Stok ${o.nama_obat} tidak cukup (${o.stok})`, 'error'); return; }
+    const subtotal = o.harga * jumlah;
+    totalHarga += subtotal;
+    obatItems.push({ kode_obat: kode, nama_obat: o.nama_obat, jumlah, aturan_pakai: aturan, harga_satuan: o.harga, subtotal });
+    o.stok -= jumlah;
+  }
+
+  const patient = patients.find(p => p.patient_id === patientId);
+  const nomorResep = 'RES-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + String(resepList.length+1).padStart(4,'0');
+  const resep = {
+    nomor_resep: nomorResep, patient_id: patientId,
+    nama_pasien: patient ? patient.full_name : patientId,
+    dokter, diagnosis, status: 'pending',
+    total_harga: totalHarga, detail_resep: obatItems,
+    created_at: new Date().toISOString()
+  };
+  resepList.push(resep);
+
+  addEvent('resep', `RESEP_CREATED → ${nomorResep} for ${patientId} | total: Rp ${totalHarga.toLocaleString('id-ID')}`);
+  renderObat();
+  renderResep();
+  updateBadges();
+  updateStats();
+  toast(`✅ Resep ${nomorResep} berhasil dibuat`, 'success');
+
+  document.getElementById('resep-patient').value = '';
+  document.getElementById('resep-dokter').value = '';
+  document.getElementById('resep-diagnosis').value = '';
+  document.getElementById('resep-obat-list').innerHTML = '';
+  addObatRow();
+}
+
+function renderResep() {
+  const tbody = document.getElementById('resep-tbody');
+  if (!resepList.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">✍️</div><div class="empty-text">Belum ada resep.</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = resepList.map(r => `
+    <tr>
+      <td class="mono" style="color:var(--accent-pharma)">${r.nomor_resep}</td>
+      <td>${r.nama_pasien}<br><span class="mono" style="font-size:11px;color:var(--text-muted)">${r.patient_id}</span></td>
+      <td>${r.dokter}</td>
+      <td><span class="badge-status badge-${r.status}">${r.status}</span></td>
+      <td>Rp ${r.total_harga.toLocaleString('id-ID')}</td>
+      <td>
+        <div class="flex-row">
+          <button class="btn btn-outline btn-sm btn-icon" onclick="showResepDetail('${r.nomor_resep}')">👁</button>
+          ${r.status !== 'selesai' ? `<button class="btn btn-green btn-sm" onclick="selesaikanResep('${r.nomor_resep}')">✅ Selesai</button>` : ''}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function showResepDetail(nomor) {
+  const r = resepList.find(x => x.nomor_resep === nomor);
+  if (!r) return;
+  const content = `
+    <div class="detail-row"><span class="detail-key">No Resep</span><span class="detail-val mono">${r.nomor_resep}</span></div>
+    <div class="detail-row"><span class="detail-key">Pasien</span><span class="detail-val">${r.nama_pasien} (${r.patient_id})</span></div>
+    <div class="detail-row"><span class="detail-key">Dokter</span><span class="detail-val">${r.dokter}</span></div>
+    <div class="detail-row"><span class="detail-key">Diagnosis</span><span class="detail-val">${r.diagnosis || '-'}</span></div>
+    <div class="detail-row"><span class="detail-key">Status</span><span class="detail-val"><span class="badge-status badge-${r.status}">${r.status}</span></span></div>
+    <div class="detail-row"><span class="detail-key">Dibuat</span><span class="detail-val">${r.created_at.slice(0,10)}</span></div>
+    <div class="card-title" style="margin-top:16px;margin-bottom:10px">Detail Obat</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nama Obat</th><th>Jumlah</th><th>Aturan</th><th>Subtotal</th></tr></thead>
+        <tbody>
+          ${r.detail_resep.map(d => `<tr>
+            <td>${d.nama_obat}</td>
+            <td>${d.jumlah} ${obatList.find(o => o.kode_obat === d.kode_obat)?.satuan || ''}</td>
+            <td>${d.aturan_pakai || '-'}</td>
+            <td>Rp ${d.subtotal.toLocaleString('id-ID')}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="detail-row" style="margin-top:12px"><span class="detail-key">Total</span><span class="detail-val" style="font-size:18px;font-weight:700;color:var(--accent-pharma)">Rp ${r.total_harga.toLocaleString('id-ID')}</span></div>`;
+  document.getElementById('modal-resep-content').innerHTML = content;
+  openModal('modal-resep');
+}
+
+function selesaikanResep(nomor) {
+  const r = resepList.find(x => x.nomor_resep === nomor);
+  if (!r) return;
+  r.status = 'selesai';
+
+  // update invoice
+  const inv = invoices.find(i => i.patient_id === r.patient_id);
+  if (inv) {
+    inv.items.push({ description: `Resep ${nomor}`, amount: r.total_harga });
+    inv.total += r.total_harga;
+  }
+
+  addEvent('resep', `RESEP_SELESAI → ${nomor} | event: resep.selesai → Billing Service`);
+  addEvent('billing', `Invoice updated for ${r.patient_id} +Rp ${r.total_harga.toLocaleString('id-ID')}`);
+  renderResep();
+  renderInvoices();
+  updateStats();
+  toast(`Resep ${nomor} selesai! Invoice diupdate otomatis.`, 'success');
+}
+
+// ═══════════════════════════════════════════
+// BILLING
+// ═══════════════════════════════════════════
+function renderInvoices(list = null) {
+  let data = list || invoices;
+  if (currentFilter !== 'ALL') data = data.filter(i => i.status === currentFilter);
+  const q = document.getElementById('search-invoice')?.value?.toLowerCase() || '';
+  if (q) data = data.filter(i => i.patient_id.toLowerCase().includes(q) || i.full_name.toLowerCase().includes(q));
+
+  const tbody = document.getElementById('invoice-tbody');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">🧾</div><div class="empty-text">Tidak ada invoice ditemukan.</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(inv => `
+    <tr>
+      <td class="mono" style="font-size:11px">${inv._id}</td>
+      <td class="mono" style="color:var(--accent-billing)">${inv.patient_id}</td>
+      <td>${inv.full_name}</td>
+      <td><span class="badge-status badge-${inv.registration_type.toLowerCase()}">${inv.registration_type}</span></td>
+      <td style="font-weight:600">Rp ${inv.total.toLocaleString('id-ID')}</td>
+      <td><span class="badge-status badge-${inv.status.toLowerCase()}">${inv.status}</span></td>
+      <td class="mono">${inv.created_at.slice(0,10)}</td>
+      <td>
+        <div class="flex-row">
+          <button class="btn btn-outline btn-sm btn-icon" onclick="showInvoiceDetail('${inv._id}')">👁</button>
+          ${inv.status === 'UNPAID' ? `<button class="btn btn-amber btn-sm" onclick="payInvoice('${inv._id}')">💳 Bayar</button>` : ''}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function filterInvoice(status) {
+  currentFilter = status;
+  ['ALL','UNPAID','PAID'].forEach(s => {
+    const el = document.getElementById('inv-filter-' + s.toLowerCase());
+    if (el) el.style.borderColor = s === status ? 'var(--accent-billing)' : '';
+    if (el) el.style.color = s === status ? 'var(--accent-billing)' : '';
+  });
+  renderInvoices();
+}
+
+function filterInvoiceSearch() { renderInvoices(); }
+
+function showInvoiceDetail(id) {
+  const inv = invoices.find(i => i._id === id);
+  if (!inv) return;
+  const content = `
+    <div class="detail-row"><span class="detail-key">Invoice ID</span><span class="detail-val mono">${inv._id}</span></div>
+    <div class="detail-row"><span class="detail-key">Patient ID</span><span class="detail-val mono">${inv.patient_id}</span></div>
+    <div class="detail-row"><span class="detail-key">Nama Pasien</span><span class="detail-val">${inv.full_name}</span></div>
+    <div class="detail-row"><span class="detail-key">Tipe</span><span class="detail-val"><span class="badge-status badge-${inv.registration_type.toLowerCase()}">${inv.registration_type}</span></span></div>
+    <div class="detail-row"><span class="detail-key">Status</span><span class="detail-val"><span class="badge-status badge-${inv.status.toLowerCase()}">${inv.status}</span></span></div>
+    <div class="card-title" style="margin-top:16px;margin-bottom:10px">Rincian Tagihan</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Deskripsi</th><th>Jumlah</th></tr></thead>
+        <tbody>
+          ${inv.items.map(it => `<tr><td>${it.description}</td><td>Rp ${it.amount.toLocaleString('id-ID')}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="detail-row" style="margin-top:12px">
+      <span class="detail-key">Total</span>
+      <span class="detail-val" style="font-size:20px;font-weight:700;color:var(--accent-billing)">Rp ${inv.total.toLocaleString('id-ID')}</span>
+    </div>
+    ${inv.status === 'UNPAID' ? `<button class="btn btn-amber mt-16" onclick="payInvoice('${inv._id}');closeModal('modal-invoice')">💳 Bayar Sekarang</button>` : ''}`;
+  document.getElementById('modal-invoice-content').innerHTML = content;
+  openModal('modal-invoice');
+}
+
+function payInvoice(id) {
+  const inv = invoices.find(i => i._id === id);
+  if (!inv) return;
+  inv.status = 'PAID';
+  inv.paid_at = new Date().toISOString();
+  addEvent('billing', `INVOICE_PAID → ${id} | patient: ${inv.patient_id} | total: Rp ${inv.total.toLocaleString('id-ID')}`);
+  renderInvoices();
+  updateStats();
+  toast(`✅ Invoice ${id} berhasil dibayar!`, 'success');
+}
+
+// ═══════════════════════════════════════════
+// SEED DATA
+// ═══════════════════════════════════════════
+function seedData() {
+  // Seed obat
+  const seedObat = [
+    { kode_obat: 'OBT001', nama_obat: 'Paracetamol 500mg', stok: 150, satuan: 'tablet', harga: 1500 },
+    { kode_obat: 'OBT002', nama_obat: 'Amoxicillin 500mg', stok: 80, satuan: 'kapsul', harga: 3500 },
+    { kode_obat: 'OBT003', nama_obat: 'Ibuprofen 400mg', stok: 60, satuan: 'tablet', harga: 2000 },
+    { kode_obat: 'OBT004', nama_obat: 'Omeprazole 20mg', stok: 8, satuan: 'kapsul', harga: 5000 },
+    { kode_obat: 'OBT005', nama_obat: 'Cetirizine 10mg', stok: 45, satuan: 'tablet', harga: 1800 },
+  ];
+  seedObat.forEach(o => { if (!obatList.find(x => x.kode_obat === o.kode_obat)) obatList.push({ ...o, created_at: new Date().toISOString() }); });
+
+  // Seed patients
+  const seedPatients = [
+    { nik: '3201012345678901', full_name: 'Budi Santoso', date_of_birth: '1990-05-15', gender: 'L', contact_number: '081234567890', blood_type: 'O', address: 'Jl. Merdeka No. 45, Bandung', registration_type: 'UMUM' },
+    { nik: '3201019876543210', full_name: 'Siti Rahayu', date_of_birth: '1985-08-22', gender: 'P', contact_number: '082345678901', blood_type: 'A', address: 'Jl. Sudirman No. 12, Jakarta', registration_type: 'BPJS' },
+  ];
+  seedPatients.forEach(p => {
+    if (!patients.find(x => x.nik === p.nik)) {
+      const id = 'REG-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + String(patients.length+1).padStart(4,'0');
+      patients.push({ patient_id: id, ...p, created_at: new Date().toISOString() });
+      invoices.push({ _id: 'INV-' + Date.now() + Math.random(), patient_id: id, full_name: p.full_name, registration_type: p.registration_type, items: [{ description: 'Biaya Registrasi ' + p.registration_type, amount: p.registration_type === 'UMUM' ? 50000 : 0 }], total: p.registration_type === 'UMUM' ? 50000 : 0, status: 'UNPAID', created_at: new Date().toISOString() });
+    }
+  });
+
+  renderPatients();
+  renderObat();
+  renderInvoices();
+  updateBadges();
+  updateStats();
+  addEvent('patient', 'Seed data loaded: 2 pasien, 5 obat, 2 invoice');
+}
+
+// INIT
+window.addEventListener('DOMContentLoaded', () => {
+  seedData();
+  navigate('overview');
+});
+</script>
+</body>
+</html>
