@@ -134,6 +134,22 @@ services:
     networks:
       - eai_network
 
+  # 5. EAI Dashboard (Static UI)
+  dashboard:
+    image: nginx:alpine
+    container_name: eai_dashboard
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./hospital-eai-dashboard.html:/usr/share/nginx/html/index.html:ro
+    depends_on:
+      - registrasi_app
+      - pharmacy_app
+      - billing_app
+    networks:
+      - eai_network
+
   # 4. Integration Layer (Message Translator)
   integration_layer:
     build:
