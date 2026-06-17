@@ -4,69 +4,67 @@
 
 Repositori ini berisi implementasi sistem **Enterprise Application Integration (EAI)** untuk simulasi Rumah Sakit, dengan menggunakan arsitektur microservices ter-containerize.
 
-## Bagian 1: Sistem Registrasi (Telah Selesai)
-
-Sistem Registrasi berfungsi sebagai pintu masuk utama pendaftaran pasien. Dibangun menggunakan **FastAPI** dan **PostgreSQL**, serta menggunakan **RabbitMQ** untuk mem-publish event secara asinkron ke sistem lain (seperti Rekam Medis dan Billing).
-
-### Menjalankan Sistem Registrasi
-Pastikan Docker telah terpasang, lalu jalankan perintah:
-```bash
-docker compose up -d --build
-```
-
-Repositori ini berisi implementasi sistem Enterprise Application Integration (EAI) untuk simulasi Rumah Sakit, dengan menggunakan arsitektur microservices ter-containerize.
-
 ---
 
 ## Sistem yang Diintegrasikan
 
 | Sistem | Framework | Database | Port | Status |
 |---|---|---|---|---|
-| Registrasi | FastAPI | PostgreSQL | 8001 | ✅ Selesai |
-| Farmasi | Flask | MySQL | 8002 | 🔧 In Progress |
-| Billing/Asuransi | Express.js | MongoDB | 8003 | ✅ Selesai |
+| **Registrasi** | FastAPI | PostgreSQL | 8001 | ✅ Selesai |
+| **Farmasi** | Flask | MySQL | 5001 | ✅ Selesai |
+| **Billing/Asuransi** | Express.js | MongoDB | 8003 | ✅ Selesai |
+| **Dashboard UI** | Nginx (Static HTML) | - | 8080 | ✅ Selesai |
+| **RabbitMQ** | Message Broker | - | 5672 / 15672 | ✅ Selesai |
 
 ---
 
-## Bagian 1: Sistem Registrasi
+## Cara Menjalankan Sistem
 
-Sistem Registrasi berfungsi sebagai pintu masuk utama pendaftaran pasien. Dibangun menggunakan FastAPI dan PostgreSQL, serta menggunakan RabbitMQ untuk mem-publish event secara asinkron ke sistem lain.
+Seluruh sistem (semua microservices, database, dan message broker) telah dikonfigurasi dalam satu file `docker-compose.yml` di root direktori.
 
-### Menjalankan Sistem Registrasi
+Pastikan Docker telah terpasang dan berjalan, lalu jalankan perintah berikut di root direktori proyek (`Tubes_Eai`):
 
 ```bash
-docker compose up -d --build
+docker-compose up -d --build
 ```
 
-Ini akan menjalankan 3 layanan:
-1. `db_registrasi` (PostgreSQL) di port `5432`
-2. `rabbitmq` di port `5672` (AMQP) dan `15672` (UI)
-3. `registrasi_app` (FastAPI) di port `8001`
+Ini akan menjalankan semua container yang dibutuhkan. Anda dapat mengakses layanan melalui port berikut:
+- **EAI Dashboard**: `http://localhost:8080`
+- **RabbitMQ Dashboard**: `http://localhost:15672` (username: `guest`, password: `guest`)
+- **Registrasi API (Swagger)**: `http://localhost:8001/docs`
 
-### Endpoint API (Sistem Registrasi)
-- **Swagger Docs:** `http://localhost:8001/docs`
-- **POST /api/v1/patients:** Mendaftarkan pasien baru.
+---
+
+## Alur Integrasi (End-to-End)
+
+Proyek ini menerapkan beberapa EIP (Enterprise Integration Patterns) seperti *Message Channel*, *Publish-Subscribe*, dan *Message Translator*.
+
+1. **Registrasi Pasien**
+   - Pasien mendaftar melalui Registration Service.
+   - Event `patient.registered` diterbitkan ke RabbitMQ (Exchange: `hospital.events`).
+2. **Distribusi Event**
+   - **Billing Service** menerima event `patient.registered` dan otomatis membuat tagihan awal/data pasien.
+   - **Integration Layer** menerjemahkan event ini menjadi `pasien.terdaftar` untuk dikonsumsi oleh sistem Farmasi (Exchange: `registration_events`).
+3. **Proses Farmasi**
+   - Dokter membuat resep. Jika resep diselesaikan, stok obat otomatis berkurang.
+   - Event `resep.selesai` diterbitkan ke RabbitMQ (Exchange: `pharmacy_events`).
+4. **Pembaharuan Tagihan**
+   - **Billing Service** menerima event `resep.selesai` dan memperbarui total tagihan pasien secara otomatis.
+
+---
+
+## Rincian Microservices
+
+### 1. Sistem Registrasi (Port 8001)
+Berfungsi sebagai pintu masuk utama pendaftaran pasien.
+- **POST /api/v1/patients:** Mendaftarkan pasien baru (memicu event `patient.registered`).
 - **GET /api/v1/patients:** Melihat daftar pasien.
 
-### Skema Data / Event Payload (Data Contract)
-Setiap kali registrasi berhasil, sistem akan mengirimkan event JSON berikut ke RabbitMQ (Exchange: `hospital.events`, Routing Key: `patient.registered`):
-
-### Endpoint API
-
-- Swagger Docs: `http://localhost:8001/docs`
-- `POST /api/v1/patients` — Mendaftarkan pasien baru
-- `GET /api/v1/patients` — Melihat daftar pasien
-
-### Event yang Dipublish
-
-Exchange: `hospital.events` | Routing Key: `patient.registered`
->>>>>>> origin/feat/billing-service
-
+**Event Payload (`patient.registered`):**
 ```json
 {
   "event_id": "evt_987654321",
   "event_timestamp": "2026-06-03T19:45:00Z",
-  "event_type": "PATIENT_REGISTERED",gi
   "event_type": "PATIENT_REGISTERED",
   "data": {
     "patient_id": "REG-20260603-0001",
@@ -82,218 +80,27 @@ Exchange: `hospital.events` | Routing Key: `patient.registered`
 }
 ```
 
----
+### 2. Sistem Farmasi (Port 5001)
+Mengelola stok obat dan resep pasien.
+- **GET /api/pharmacy/obat:** Daftar semua obat.
+- **POST /api/pharmacy/resep:** Buat resep baru (mengurangi stok).
+- **PATCH /api/pharmacy/resep/{nomor}/selesai:** Menyelesaikan resep (memicu event `resep.selesai`).
 
-*Catatan: Sistem Rekam Medis, Billing, dan Integration Layer akan di-push oleh anggota tim lainnya ke repositori ini.*
-
-## Bagian 2: Sistem Farmasi
-
-### Struktur File yang Sudah Dibuat
-
-```
-pharmacy-service/
-├── app/
-│   ├── __init__.py       # File kosong penanda ini adalah package Python
-│   ├── models.py         # Definisi tabel database (Obat, Resep, DetailResep)
-│   ├── routes.py         # Semua endpoint API
-│   ├── publisher.py      # Kirim event ke RabbitMQ
-│   ├── consumer.py       # Terima event dari RabbitMQ
-│   └── factory.py        # Inisialisasi Flask app
-├── main.py               # Entry point (titik masuk aplikasi)
-├── requirements.txt      # Daftar library Python
-├── Dockerfile            # Cara build image Docker
-│
-├── docker-compose.yml    # ← FILE INI DI ROOT PROJECT (bukan di dalam pharmacy-service)
-├── .env.example          # Template konfigurasi environment variable
-└── nginx/
-    └── nginx.conf        # Konfigurasi API Gateway
-```
+### 3. Sistem Billing/Asuransi (Port 8003)
+Menerima event dari Registrasi dan Farmasi untuk membuat/memperbarui tagihan.
+- **GET /api/v1/invoices:** Melihat semua tagihan.
+- **GET /api/v1/invoices/:patient_id:** Melihat tagihan berdasarkan ID pasien.
+- **PATCH /api/v1/invoices/:patient_id/pay:** Update status tagihan menjadi `PAID`.
 
 ---
 
-### Penjelasan Tiap File
+## Pola Enterprise Integration (EIP) yang Diterapkan
 
-**`models.py` — Struktur Database**
-Mendefinisikan 3 tabel MySQL:
-- **Obat**: stok obat (kode, nama, stok, harga)
-- **Resep**: data resep pasien
-- **DetailResep**: item obat di dalam satu resep
+Sistem ini dirancang menggunakan beberapa arsitektur *Enterprise Integration Patterns* utama:
 
-**`routes.py` — API Endpoints**
-
-| Method | URL | Fungsi |
-|--------|-----|--------|
-| GET | `/api/pharmacy/health` | Cek service hidup |
-| GET | `/api/pharmacy/obat` | Daftar semua obat |
-| GET | `/api/pharmacy/obat/{kode}` | Detail satu obat |
-| POST | `/api/pharmacy/obat` | Tambah obat baru |
-| PATCH | `/api/pharmacy/obat/{kode}/stok` | Update stok |
-| GET | `/api/pharmacy/resep` | Daftar semua resep |
-| GET | `/api/pharmacy/resep/{nomor}` | Detail satu resep |
-| POST | `/api/pharmacy/resep` | Buat resep baru |
-| PATCH | `/api/pharmacy/resep/{nomor}/selesai` | Selesaikan resep ← **Event trigger!** |
-
-**`publisher.py` — Kirim Event ke RabbitMQ**
-Pharmacy service MENGIRIM 2 jenis event:
-- `resep.selesai` → dikonsumsi Billing Service (buat tagihan otomatis)
-- `stok.menipis` → notifikasi ke admin
-
-**`consumer.py` — Terima Event dari RabbitMQ**
-Pharmacy service MENERIMA event:
-- `pasien.terdaftar` dari Registration Service
-
----
-
-### Alur End-to-End (Yang Wajib Didemonstrasikan)
-
-```
-[1] Pasien daftar di Registration Service
-         ↓ (event: pasien.terdaftar)
-    [RabbitMQ exchange: registration_events]
-         ↓
-[2] Pharmacy Service terima event (consumer.py)
-    → Simpan info pasien untuk referensi resep
-
-[3] Dokter buat resep via POST /api/pharmacy/resep
-    → Stok obat berkurang otomatis
-
-[4] Resep diselesaikan via PATCH /api/pharmacy/resep/{nomor}/selesai
-         ↓ (event: resep.selesai)
-    [RabbitMQ exchange: pharmacy_events]
-         ↓
-[5] Billing Service terima event → buat tagihan otomatis
-```
-
----
-
-### Cara Menjalankan
-
-**1. Pindahkan docker-compose.yml ke root project**
-
-Struktur folder project kamu seharusnya:
-```
-hospital-integration/          ← ROOT PROJECT
-├── docker-compose.yml         ← pindahkan ke sini
-├── .env                       ← salin dari .env.example
-├── nginx/
-│   └── nginx.conf
-├── registration-service/      ← sudah kamu buat
-├── pharmacy-service/          ← yang baru dibuat
-├── medical-service/           ← belum dibuat
-└── integration-layer/         ← belum dibuat
-```
-
-**2. Salin file .env**
-```bash
-cp .env.example .env
-```
-
-**3. Jalankan semua service**
-```bash
-docker compose up --build
-```
-
-**4. Test Pharmacy Service**
-```bash
-# Cek service hidup
-curl http://localhost:5001/api/pharmacy/health
-
-# Lihat daftar obat
-curl http://localhost:5001/api/pharmacy/obat
-
-# Buat resep baru
-curl -X POST http://localhost:5001/api/pharmacy/resep \
-  -H "Content-Type: application/json" \
-  -d '{
-    "patient_id": "REG-001",
-    "nama_pasien": "Budi Santoso",
-    "dokter": "dr. Andi",
-    "diagnosis": "Demam tifoid",
-    "obat_list": [
-      {
-        "kode_obat": "OBT001",
-        "jumlah": 10,
-        "aturan_pakai": "3x sehari sesudah makan"
-      }
-    ]
-  }'
-
-# Selesaikan resep (ini yang trigger event ke Billing)
-curl -X PATCH http://localhost:5001/api/pharmacy/resep/RES-20240601-XXXXXX/selesai
-```
-
-**5. Monitor RabbitMQ**
-Buka browser: http://localhost:15672
-- Username: guest
-- Password: guest
-
----
-
-### EIP Patterns yang Diterapkan di Service Ini
-
-| Pattern | Di mana? |
-|---------|---------|
-| **Message Channel** | Exchange `pharmacy_events` dan `registration_events` di RabbitMQ |
-| **Message Translator** | `consumer.py` parse JSON dari broker, transform ke object Python |
-| **Publish-Subscribe** | Event `resep.selesai` bisa dikonsumsi banyak subscriber (Billing, dll) |
-| **Dead Letter Queue** | Konfigurasi `x-dead-letter-exchange` di `consumer.py` |
-| **Content-Based Router** | `routing_key` di publisher menentukan siapa yang terima event |
-
----
-
-## Bagian 3: Sistem Billing/Asuransi
-
-Sistem Billing berfungsi menerima event dari Registrasi dan Farmasi, lalu membuat tagihan secara otomatis untuk pasien.
-
-### Menjalankan Sistem Billing
-
-```bash
-cd apps/billing
-docker compose up -d --build
-```
-
-Ini akan menjalankan 3 layanan:
-1. `mongo_billing` (MongoDB) di port `27017`
-2. `rabbitmq` di port `5672` (AMQP) dan `15672` (UI)
-3. `billing` (Express.js) di port `8003`
-
-### Endpoint API
-
-- `GET /health` — Cek status service
-- `GET /api/v1/invoices` — Melihat semua tagihan
-- `GET /api/v1/invoices/:patient_id` — Melihat tagihan berdasarkan patient_id
-- `PATCH /api/v1/invoices/:patient_id/pay` — Update status tagihan menjadi PAID
-
-### Event yang Dikonsumsi
-
-Exchange: `hospital.events` | Routing Key: `patient.registered`
-
-```json
-{
-  "event_id": "evt_987654321",
-  "event_timestamp": "2026-06-03T19:45:00Z",
-  "event_type": "PATIENT_REGISTERED",
-  "data": {
-    "patient_id": "REG-20260603-0001",
-    "full_name": "Budi Santoso",
-    "registration_type": "UMUM"
-  }
-}
-```
-
-### Event yang Akan Dikonsumsi (Menunggu Farmasi)
-
-Exchange: `hospital.events` | Routing Key: `prescription.dispensed`
-
-```json
-{
-  "event_type": "PRESCRIPTION_DISPENSED",
-  "data": {
-    "patient_id": "REG-20260603-0001",
-    "medicines": [
-      { "name": "Paracetamol", "price": 25000 }
-    ],
-    "total_price": 25000
-  }
-}
-```
+| Pola EIP | Implementasi pada Sistem |
+|---|---|
+| **Publish-Subscribe Channel** | Saat event seperti `patient.registered` atau `resep.selesai` dikirimkan, event tersebut tidak ditujukan ke satu layanan spesifik. Berbagai layanan lain (seperti *Billing* atau *Integration Layer*) berlangganan dan dapat mengkonsumsinya secara independen tanpa membebani layanan asal (Registrasi/Farmasi). |
+| **Message Channel** | Penggunaan pertukaran pesan asinkron melalui RabbitMQ (Exchange: `hospital.events`, `pharmacy_events`, `registration_events`) berfungsi sebagai Message Channel yang menghubungkan berbagai aplikasi yang berbeda. |
+| **Message Translator** | Terdapat *Integration Layer* yang berfungsi menangkap event asli (misal `patient.registered` dari *hospital.events*), memformat atau menerjemahkannya jika perlu, lalu meneruskannya kembali dengan *routing key* atau tipe yang berbeda (misal `pasien.terdaftar` ke *registration_events*) agar kompatibel dengan sistem Farmasi. |
+| **Content-Based Router (via Routing Key)** | RabbitMQ bertindak merutekan pesan ke antrian yang tepat berdasarkan *Routing Key* yang disematkan pada event tersebut. Hanya antrian (queue) yang di-*bind* dengan key yang cocok yang akan menerima pesannya. |

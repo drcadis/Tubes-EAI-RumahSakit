@@ -90,8 +90,10 @@ services:
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       EXCHANGE_NAME: hospital.events
     depends_on:
-      - rabbitmq
-      - db_registrasi
+      rabbitmq:
+        condition: service_healthy
+      db_registrasi:
+        condition: service_started
     networks:
       - eai_network
 
@@ -108,8 +110,10 @@ services:
       MONGODB_URI: mongodb://db_billing:27017/billing_db
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:
-      - rabbitmq
-      - db_billing
+      rabbitmq:
+        condition: service_healthy
+      db_billing:
+        condition: service_started
     networks:
       - eai_network
 
